@@ -23,6 +23,7 @@
 - [Prérequis](#prérequis)
 - [Installation](#installation)
 - [Configuration TMDB](#configuration-tmdb)
+- [Attribution TMDB](#attribution-tmdb)
 - [Routes de l'application](#routes-de-lapplication)
 - [Modèle de données](#modèle-de-données)
 - [Détails techniques](#détails-techniques)
@@ -139,6 +140,14 @@ Un jeton se récupère gratuitement sur [themoviedb.org](https://www.themoviedb.
 
 Si `TMDB_API_TOKEN` est absent, chaque appel à l'API TMDB renvoie une erreur explicite affichée dans l'interface plutôt que de planter.
 
+## Attribution TMDB
+
+Les [CGU de l'API TMDB](https://www.themoviedb.org/api-terms-of-use) imposent d'afficher, dans l'application elle-même (pas seulement dans cette documentation) :
+- le texte *"This product uses the TMDB API but is not endorsed or certified by TMDB."*, à garder tel quel en anglais ;
+- le logo officiel TMDB, non modifié.
+
+Les deux sont affichés dans le footer de toutes les pages, factorisé dans `resources/views/components/site-footer.blade.php`. Le logo est chargé directement depuis le CDN de TMDB (pas de fichier à fournir dans le dépôt).
+
 ## Routes de l'application
 
 | Route | Composant Livewire | Description |
@@ -185,7 +194,3 @@ Table unique `watchlist_items` :
 - Mono-utilisateur, sans compte ni partage de liste.
 - Pas de suite de tests dédiée à l'application (seuls les tests d'exemple par défaut de Laravel sont présents).
 - Pas d'intégration continue configurée.
-
----
-
-<sub>Ce produit utilise l'API TMDB mais n'est ni approuvé ni certifié par TMDB.</sub>
