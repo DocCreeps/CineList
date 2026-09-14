@@ -32,5 +32,15 @@
             {{ $label }}
         </a>
         @endforeach
+
+        <form method="POST" action="{{ route('logout') }}" class="ml-2 flex items-center gap-2.5 border-l border-zinc-800 pl-3">
+            @csrf
+            <a href="{{ route('settings.profile') }}" wire:navigate class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-100">
+                {{ auth()->user()->name }}
+            </a>
+            <button type="submit" class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-red-400">
+                Déconnexion
+            </button>
+        </form>
     </nav>
 </header>

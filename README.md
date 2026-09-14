@@ -11,7 +11,7 @@
 
 <p align="center">
   Une application personnelle de gestion de liste de films à voir, basée sur l'API TMDB.<br>
-  Laravel 13 + Livewire 4 — mono-utilisateur, sans compte, à héberger soi-même.
+  Laravel 13 + Livewire 4 — multi-utilisateur sur invitation, à héberger soi-même.
 </p>
 
 ---
@@ -19,6 +19,7 @@
 ## Sommaire
 
 - [Fonctionnalités](#fonctionnalités)
+- [Authentification](#authentification)
 - [Stack technique](#stack-technique)
 - [Prérequis](#prérequis)
 - [Installation](#installation)
@@ -83,6 +84,66 @@
 - Films similaires suggérés (recommandations TMDB).
 - Si le film appartient à une saga TMDB, proposition d'ajouter toute la collection en un clic.
 - Pour un film déjà dans la liste : champ de **note personnelle** (texte libre, enregistrée par un bouton dédié) — c'est aussi ce champ qui est cherché par la recherche texte du tableau de bord.
+
+## Authentification
+
+Chaque personne a son propre compte et sa propre liste, totalement séparée de celle des autres :
+tous les films sont automatiquement filtrés par utilisateur au niveau du modèle (un *global
+scope* Eloquent sur `WatchlistItem`), donc deux comptes peuvent avoir chacun le même film dans
+leur liste sans se marcher dessus.
+
+### Inscription sur invitation
+
+Il n'y a pas d'inscription publique ouverte : créer un compte nécessite un **code
+d'invitation** à usage unique.
+
+```bash
+php artisan invite:generate                     # code sans expiration
+php artisan invite:generate --expires-in-days=7  # code valable 7 jours
+```
+
+La commande affiche un code du type `XF3K-9QRT` à partager avec la personne concernée sur
+`/inscription`. Un code ne peut servir qu'une seule fois.
+
+### Vérification d'e-mail
+
+À l'inscription, un e-mail de confirmation est envoyé (`/verifier-email` affiche l'écran
+d'attente avec un bouton pour le renvoyer). **Tant qu'aucun mailer réel n'est configuré**
+(`MAIL_MAILER=log` par défaut), cet e-mail atterrit dans `storage/logs/laravel.log` — le lien de
+vérification y est visible et fonctionne, mais ce n'est utilisable que par toi, en local.
+
+L'accès à l'application n'exige **pas** encore l'e-mail vérifié (seulement une session
+connectée), pour ne pas se retrouver bloqué avant d'avoir configuré un vrai mailer. Une fois un
+mailer configuré, ajouter le middleware `verified` au groupe de routes principal dans
+`routes/web.php` pour l'exiger.
+
+### Mot de passe oublié
+
+Fonctionne par e-mail (`/mot-de-passe-oublie`), donc soumis à la même limite : sans mailer réel,
+le lien atterrit dans `storage/logs/laravel.log` plutôt que dans une boîte mail.
+
+### Films ajoutés avant la mise en place des comptes
+
+Si la base contenait déjà des films avant ce système d'auth, ils n'ont pas de propriétaire et
+restent invisibles (le scope global les exclut de toute liste tant qu'ils n'appartiennent à
+personne). Pour les rattacher à un compte après ta première inscription :
+
+```bash
+php artisan watchlist:assign-owner ton@email.fr
+# ou par ID : php artisan watchlist:assign-owner 1
+```
+
+### Sécurité
+
+- Mots de passe hashés automatiquement (cast `hashed` sur `User::password`, bcrypt).
+- Limitation des tentatives de connexion : 5 essais par couple e-mail + IP, verrouillage 60s.
+- Régénération de la session à la connexion et à l'inscription (protection contre la fixation
+  de session).
+- Message de confirmation identique qu'un e-mail existe ou non sur "mot de passe oublié"
+  (pas d'énumération de comptes).
+- Lien de vérification d'e-mail signé et limité en fréquence (`signed`, `throttle:6,1`).
+- `user_id` volontairement absent du `$fillable` de `WatchlistItem` : il n'est jamais modifiable
+  via un payload, uniquement via l'utilisateur actuellement connecté.
 
 ## Stack technique
 
@@ -157,16 +218,24 @@ Les deux sont affichés dans le footer de toutes les pages, factorisé dans `res
 | `/tableau-de-bord` | `watchlist.dashboard` | Liste personnelle |
 | `/a-venir` | `upcoming.index` | Sorties cinéma à venir |
 | `/statistiques` | `stats.index` | Bilan des films vus (« Mon année ciné ») |
+| `/connexion` | `auth.login` | Connexion |
+| `/inscription` | `auth.register` | Création de compte (code d'invitation requis) |
+| `/mot-de-passe-oublie` | `auth.forgot-password` | Demande de réinitialisation |
+| `/reinitialiser-mot-de-passe/{token}` | `auth.reset-password` | Choix du nouveau mot de passe |
+| `/verifier-email` | `auth.verify-email` | Écran d'attente de vérification d'e-mail |
 
-Aucune authentification n'est mise en place : l'application est prévue pour un usage personnel, en local ou sur un hébergement privé.
+Toutes les routes ci-dessus sauf les quatre routes d'authentification (connexion, inscription,
+mot de passe oublié, réinitialisation) nécessitent une session connectée (middleware `auth`).
+Voir [Authentification](#authentification) pour le détail.
 
 ## Modèle de données
 
-Table unique `watchlist_items` :
+Table `watchlist_items` :
 
 | Champ | Type | Détail |
 |---|---|---|
-| `tmdb_id` | string, unique | Identifiant TMDB du film |
+| `user_id` | foreign id | Propriétaire du film ; filtré automatiquement par un global scope Eloquent (voir [Authentification](#authentification)) |
+| `tmdb_id` | string, unique par utilisateur | Identifiant TMDB du film |
 | `title`, `year`, `poster_url`, `type`, `genre`, `runtime`, `plot`, `imdb_rating` | — | Métadonnées récupérées depuis TMDB au moment de l'ajout |
 | `director`, `actors`, `studio` | string | Réalisateur, 3 premiers acteurs, studio(s)/société(s) de production (liste séparée par des virgules) |
 | `status` | string | `to_watch`, `watched` ou `to_rewatch` |
@@ -175,6 +244,9 @@ Table unique `watchlist_items` :
 | `priority` | integer | 1 (haute) à 3 (basse), réglable depuis le tableau de bord — pilote le tri par défaut |
 | `note` | string, nullable | Note personnelle en texte libre, éditable depuis la modale de détails d'un film déjà dans la liste ; incluse dans la recherche texte du tableau de bord |
 | `personal_rating` | integer, nullable | Note personnelle 1 à 5, réglable par étoiles une fois le film vu ou à revoir |
+
+Table `invite_codes` (voir [Authentification](#authentification)) : `code` (unique), `expires_at`
+et `used_at`/`used_by` nullables — un code devient indisponible dès qu'il est utilisé une fois.
 
 ## Détails techniques
 
@@ -191,6 +263,8 @@ Table unique `watchlist_items` :
 ## Limites connues
 
 - Films uniquement (pas de séries TV).
-- Mono-utilisateur, sans compte ni partage de liste.
+- Inscription sur invitation uniquement, pas d'auto-inscription publique.
+- Pas de vérification d'e-mail obligatoire par défaut (voir [Authentification](#authentification) pour l'activer une fois un mailer réel configuré).
+- Pas d'interface d'administration pour gérer les comptes ou les codes d'invitation (tout passe par `php artisan`).
 - Pas de suite de tests dédiée à l'application (seuls les tests d'exemple par défaut de Laravel sont présents).
 - Pas d'intégration continue configurée.
