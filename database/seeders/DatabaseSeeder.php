@@ -17,9 +17,14 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // 'is_admin' est volontairement hors du $fillable de User (voir le modèle),
+        // donc positionné après coup avec forceFill plutôt que via create().
+        User::factory()
+            ->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ])
+            ->forceFill(['is_admin' => true])
+            ->save();
     }
 }

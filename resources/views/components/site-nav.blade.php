@@ -35,6 +35,16 @@
 
         <form method="POST" action="{{ route('logout') }}" class="ml-2 flex items-center gap-2.5 border-l border-zinc-800 pl-3">
             @csrf
+            @if (auth()->user()->isAdmin())
+                <a href="{{ route('admin.invitations') }}" wire:navigate
+                    @class([
+                        'rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide transition',
+                        'bg-amber-500 text-zinc-950 shadow-lg shadow-amber-950/40' => request()->routeIs('admin.*'),
+                        'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60' => ! request()->routeIs('admin.*'),
+                    ])>
+                    Admin
+                </a>
+            @endif
             <a href="{{ route('settings.profile') }}" wire:navigate class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-100">
                 {{ auth()->user()->name }}
             </a>

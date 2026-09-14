@@ -2,9 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\InviteCode;
+use App\Actions\InviteCodes\GenerateInviteCode as GenerateInviteCodeAction;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 
 class GenerateInviteCode extends Command
 {
@@ -12,21 +11,19 @@ class GenerateInviteCode extends Command
 
     protected $description = "Génère un code d'invitation à usage unique pour l'inscription";
 
-    public function handle(): int
+    public function handle(GenerateInviteCodeAction $action): int
     {
-        $code = strtoupper(Str::random(4)).'-'.strtoupper(Str::random(4));
         $expiresInDays = $this->option('expires-in-days');
 
-        InviteCode::create([
-            'code' => $code,
-            'expires_at' => $expiresInDays ? now()->addDays((int) $expiresInDays) : null,
-        ]);
+        $invite = $action->handle($expiresInDays ? (int) $expiresInDays : null);
 
-        $this->info("Code d'invitation généré : {$code}");
+        $this->info("Code d'invitation généré : {$invite->code}");
 
-        if ($expiresInDays) {
-            $this->line('Expire le : '.now()->addDays((int) $expiresInDays)->format('d/m/Y'));
+        if ($invite->expires_at) {
+            $this->line('Expire le : '.$invite->expires_at->format('d/m/Y'));
         }
+
+        $this->line('Astuce : un administrateur peut aussi générer et envoyer un code par e-mail depuis /admin/invitations.');
 
         return self::SUCCESS;
     }

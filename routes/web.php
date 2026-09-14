@@ -28,13 +28,17 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/deconnexion', LogoutController::class)->name('logout');
 
-    // Ajouter 'verified' ici (ex: ->middleware(['auth', 'verified'])) une fois un vrai
-    // mailer configuré, pour exiger la vérification d'email avant d'accéder à l'app.
-    Route::livewire('/', 'home')->name('home');
-    Route::livewire('/tableau-de-bord', 'watchlist.dashboard')->name('watchlist.dashboard');
-    Route::livewire('/recherche', 'search.index')->name('search.index');
-    Route::livewire('/a-venir', 'upcoming.index')->name('upcoming.index');
-    Route::livewire('/statistiques', 'stats.index')->name('stats.index');
+    // N'exige `verified` en plus de `auth` que si REQUIRE_EMAIL_VERIFICATION=true
+    // (voir config/auth.php) — à activer une fois un vrai mailer configuré.
+    // Calculé ici plutôt que dans une variable externe : une closure PHP ne
+    // capture pas automatiquement les variables du scope englobant.
+    Route::middleware(array_filter(['auth', config('auth.require_verified_email') ? 'verified' : null]))->group(function () {
+        Route::livewire('/', 'home')->name('home');
+        Route::livewire('/tableau-de-bord', 'watchlist.dashboard')->name('watchlist.dashboard');
+        Route::livewire('/recherche', 'search.index')->name('search.index');
+        Route::livewire('/a-venir', 'upcoming.index')->name('upcoming.index');
+        Route::livewire('/statistiques', 'stats.index')->name('stats.index');
+    });
 
     // Pages sensibles : ré-authentification par mot de passe exigée
     // (redirigées vers password.confirm si non confirmées récemment).
@@ -43,5 +47,11 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/mot-de-passe', 'settings.password')->name('password');
         Route::livewire('/double-authentification', 'settings.two-factor')->name('two-factor');
         Route::livewire('/sessions', 'settings.sessions')->name('sessions');
+    });
+
+    // Réservé aux comptes administrateurs (voir App\Http\Middleware\EnsureUserIsAdmin) :
+    // confirmation de mot de passe exigée en plus, comme pour les autres pages sensibles.
+    Route::middleware(['password.confirm', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+        Route::livewire('/invitations', 'admin.invitations')->name('invitations');
     });
 });

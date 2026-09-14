@@ -114,4 +114,18 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Exiger un e-mail vérifié
+    |--------------------------------------------------------------------------
+    |
+    | Une fois un vrai mailer configuré (MAIL_MAILER autre que "log"), passe
+    | cette variable à true pour bloquer l'accès à l'application tant que le
+    | lien reçu par e-mail n'a pas été cliqué. Reste à false par défaut pour ne
+    | pas bloquer un déploiement dont le mailer n'est pas encore prêt.
+    |
+    */
+
+    'require_verified_email' => env('REQUIRE_EMAIL_VERIFICATION', false),
+
 ];
