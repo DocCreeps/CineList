@@ -53,5 +53,6 @@ Route::middleware('auth')->group(function () {
     // confirmation de mot de passe exigée en plus, comme pour les autres pages sensibles.
     Route::middleware(['password.confirm', 'admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::livewire('/invitations', 'admin.invitations')->name('invitations');
+        Route::livewire('/membres', 'admin.members')->name('members');
     });
 });

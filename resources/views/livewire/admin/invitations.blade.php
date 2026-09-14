@@ -4,6 +4,7 @@
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Administration</p>
             <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Codes d'invitation</h1>
             <p class="mt-2 text-sm text-zinc-500">Génère un code à partager manuellement, ou envoie-le directement par e-mail à la personne invitée.</p>
+            @include('livewire.admin.partials.tabs')
         </div>
 
         @include('livewire.partials.notice')
