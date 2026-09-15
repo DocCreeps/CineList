@@ -2,8 +2,11 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Actions\Watchlist\AddCollectionToWatchlist;
+use App\Actions\Watchlist\AddMovieToWatchlist;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
+use App\Support\Movies\ReleaseWindow;
 
 /**
  * Shared behaviour for any page that lists TMDB movies (search results,
@@ -152,83 +155,29 @@ trait InteractsWithMovies
      * released, or released recently enough to still plausibly be in theaters (within the same
      * ~2-month window as the Upcoming page), keeps the single "+ Cinéma" tag; anything older
      * switches to the "Déjà vue" / "+ Streaming" / "Revoir" tags instead.
+     *
+     * Delegates to App\Support\Movies\ReleaseWindow (kept as a thin wrapper here since the
+     * Blade views call it as $this->releaseWindow(...) on the component instance).
      */
     public function releaseWindow(?string $releaseDate): string
     {
-        if (blank($releaseDate)) {
-            return 'old';
-        }
-
-        $date = \Illuminate\Support\Carbon::parse($releaseDate);
-
-        if ($date->isFuture()) {
-            return 'upcoming';
-        }
-
-        return $date->diffInDays(now()) <= 60 ? 'in_cinema' : 'old';
+        return ReleaseWindow::classify($releaseDate);
     }
 
-    public function add(TmdbClient $tmdb, string $tmdbId, string $source, string $status = 'to_watch'): void
+    public function add(TmdbClient $tmdb, AddMovieToWatchlist $action, string $tmdbId, string $source, string $status = 'to_watch'): void
     {
-        abort_unless(in_array($source, ['cinema', 'streaming'], true), 422);
-        abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
-        if (WatchlistItem::where('tmdb_id', $tmdbId)->exists()) {
-            session()->flash('notice', 'Ce film est déjà dans votre liste.');
-            return;
-        }
-        $movie = $tmdb->find($tmdbId) ?? collect($this->results)->firstWhere('tmdb_id', $tmdbId);
-        if (! $movie) {
-            session()->flash('notice', 'Impossible de récupérer ce film.');
-            return;
-        }
-        WatchlistItem::create([
-            ...$movie,
-            'source' => $source,
-            'status' => $status,
-            // "Déjà vue" and "Revoir" are added as already watched, so stamp the
-            // date now; a plain "to watch" add leaves it unset like before.
-            'watched_at' => $status !== 'to_watch' ? now() : null,
-        ]);
-        session()->flash('notice', 'Film ajouté à votre liste.');
+        $result = $action->handle($tmdb, $tmdbId, $source, $status, $this->results);
+        session()->flash('notice', $result['message']);
     }
 
     /**
      * Adds every not-yet-added film in a TMDB collection (a saga) to the watchlist in one go,
      * each tagged "cinéma" or "streaming" per its own release date like a normal single add.
      */
-    public function addCollection(int $collectionId, TmdbClient $tmdb): void
+    public function addCollection(int $collectionId, TmdbClient $tmdb, AddCollectionToWatchlist $action): void
     {
-        $parts = $tmdb->collectionFilms($collectionId);
-        if (empty($parts)) {
-            session()->flash('notice', 'Impossible de récupérer cette saga.');
-            return;
-        }
-
-        $added = 0;
-        foreach ($parts as $part) {
-            if (WatchlistItem::where('tmdb_id', $part['tmdb_id'])->exists()) {
-                continue;
-            }
-
-            $movie = $tmdb->find($part['tmdb_id']);
-            if (! $movie) {
-                continue;
-            }
-
-            $window = $this->releaseWindow($movie['release_date'] ?? $part['release_date'] ?? null);
-
-            WatchlistItem::create([
-                ...$movie,
-                'source' => in_array($window, ['upcoming', 'in_cinema'], true) ? 'cinema' : 'streaming',
-                'status' => 'to_watch',
-                'watched_at' => null,
-            ]);
-            $added++;
-        }
-
-        session()->flash('notice', $added > 0
-            ? $added . ' film' . ($added > 1 ? 's' : '') . ' de la saga ajouté' . ($added > 1 ? 's' : '') . ' à votre liste.'
-            : 'Tous les films de cette saga sont déjà dans votre liste.');
+        $result = $action->handle($collectionId, $tmdb);
+        session()->flash('notice', $result['message']);
         $this->closeModal();
     }
 }

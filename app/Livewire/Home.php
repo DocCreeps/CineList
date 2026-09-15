@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Actions\Watchlist\WatchlistStatusCounts;
 use App\Livewire\Concerns\InteractsWithMovies;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
@@ -11,11 +12,8 @@ class Home extends Component
 {
     use InteractsWithMovies;
 
-    public function with(TmdbClient $tmdb): array
+    public function with(TmdbClient $tmdb, WatchlistStatusCounts $statusCounts): array
     {
-        // Grouped SQL counts rather than loading every row, same as the dashboard.
-        $statusCounts = WatchlistItem::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
-
         $toWatch = WatchlistItem::query()->where('status', 'to_watch')->orderBy('priority')->latest()->limit(6)->get();
 
         // Cinema films still "to watch", cross-referenced against TMDB's upcoming releases
@@ -35,12 +33,7 @@ class Home extends Component
         }
 
         return [
-            'counts' => [
-                'all' => $statusCounts->sum(),
-                'to_watch' => (int) $statusCounts->get('to_watch', 0),
-                'watched' => (int) $statusCounts->get('watched', 0),
-                'to_rewatch' => (int) $statusCounts->get('to_rewatch', 0),
-            ],
+            'counts' => $statusCounts->handle(),
             'toWatch' => $toWatch,
             'upcomingInWatchlist' => $upcomingInWatchlist,
         ];
