@@ -7,6 +7,8 @@
             @include('livewire.admin.partials.tabs')
         </div>
 
+        @include('livewire.partials.notice')
+
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
             <!-- Membres -->
             <section class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6 shadow-2xl sm:p-8">
@@ -44,6 +46,19 @@
                                 </svg>
                             </div>
                         </button>
+
+                        @if ($member->id !== auth()->id())
+                        <div class="flex justify-end border-t border-zinc-800/70 px-4 py-2">
+                            <button
+                                type="button"
+                                wire:click="deleteMember({{ $member->id }})"
+                                wire:confirm="Supprimer définitivement « {{ $member->name }} » ? Tous ses films seront également supprimés. Cette action est irréversible."
+                                class="text-[11px] font-bold uppercase tracking-wide text-red-400 transition hover:text-red-300"
+                            >
+                                Supprimer ce membre
+                            </button>
+                        </div>
+                        @endif
 
                         @if ($selectedMemberId === $member->id && $selectedMemberDetail)
                         <div class="border-t border-zinc-800 px-4 py-4">

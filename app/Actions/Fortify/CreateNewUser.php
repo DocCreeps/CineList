@@ -43,7 +43,7 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $input['password'], // hashed automatically (cast on User::password)
         ]);
 
-        $invite->markUsedBy($user);
+        $invite->recordUse($user);
 
         return $user;
     }

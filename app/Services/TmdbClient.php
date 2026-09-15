@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -292,6 +293,88 @@ class TmdbClient
             return ['results' => $results, 'error' => empty($results) ? 'Aucune sortie prévue sur cette période.' : null];
         } catch (\Exception $e) {
             Log::warning('TMDB upcoming failed.', ['message' => $e->getMessage()]);
+            return ['results' => [], 'error' => 'Erreur de connexion à TMDB.'];
+        }
+    }
+
+    /**
+     * Cinema releases (limited or wide theatrical) in France for a single calendar month, used
+     * by the "/a-venir" page's month-by-month navigation (calendrier). Same France-only
+     * filtering as upcomingFilms() (region=FR + with_release_type 2|3), but scoped to one
+     * month instead of a fixed 2-month window, so the page can be browsed further ahead.
+     *
+     * For the current month, starts from today rather than the 1st: days already past are
+     * already "sorti" and belong on the dashboard, not the upcoming page.
+     *
+     * @return array{results: array<int, array<string, mixed>>, error: ?string}
+     */
+    public function releasesForMonth(int $year, int $month): array
+    {
+        if (blank(config('services.tmdb.token'))) {
+            return ['results' => [], 'error' => 'La clé TMDB est absente de la configuration.'];
+        }
+
+        $monthStart = Carbon::create($year, $month, 1)->startOfDay();
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
+        if ($monthEnd->isPast()) {
+            return ['results' => [], 'error' => 'Ce mois est déjà passé.'];
+        }
+
+        $start = $monthStart->isPast() ? now()->startOfDay() : $monthStart;
+
+        $cacheKey = sprintf('tmdb.upcoming.month.v1.%04d-%02d.%s', $year, $month, now()->toDateString());
+        if ($cached = Cache::get($cacheKey)) {
+            return ['results' => $cached, 'error' => null];
+        }
+
+        try {
+            $movies = collect();
+            $maxPages = 6;
+
+            for ($page = 1; $page <= $maxPages; $page++) {
+                $response = $this->client()->get('discover/movie', $this->withAuth([
+                    'language' => 'fr-FR',
+                    'region' => 'FR',
+                    // 2 = limited theatrical, 3 = wide theatrical
+                    'with_release_type' => '2|3',
+                    'sort_by' => 'primary_release_date.asc',
+                    'primary_release_date.gte' => $start->toDateString(),
+                    'primary_release_date.lte' => $monthEnd->toDateString(),
+                    'page' => $page,
+                ]));
+
+                if ($response->failed()) {
+                    Log::warning('TMDB upcoming (month) failed.', ['status' => $response->status(), 'body' => $response->body()]);
+                    break;
+                }
+
+                $data = $response->json();
+                $movies = $movies->merge($data['results'] ?? []);
+
+                if ($page >= ($data['total_pages'] ?? 1)) {
+                    break;
+                }
+            }
+
+            $results = $movies->map(function ($movie) {
+                if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
+
+                return [
+                    'tmdb_id' => (string) $movie['id'],
+                    'title' => $movie['title'],
+                    'year' => (int) substr($movie['release_date'], 0, 4),
+                    'release_date' => $movie['release_date'],
+                    'poster_url' => isset($movie['poster_path']) ? 'https://image.tmdb.org/t/p/w500' . $movie['poster_path'] : null,
+                    'plot' => $movie['overview'] ?? null,
+                ];
+            })->filter()->unique('tmdb_id')->sortBy('release_date')->values()->all();
+
+            Cache::put($cacheKey, $results, now()->addHours(12));
+
+            return ['results' => $results, 'error' => empty($results) ? 'Aucune sortie prévue sur ce mois.' : null];
+        } catch (\Exception $e) {
+            Log::warning('TMDB upcoming (month) failed.', ['message' => $e->getMessage()]);
             return ['results' => [], 'error' => 'Erreur de connexion à TMDB.'];
         }
     }
