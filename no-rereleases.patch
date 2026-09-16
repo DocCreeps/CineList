@@ -1,0 +1,103 @@
+diff --git a/app/Services/TmdbClient.php b/app/Services/TmdbClient.php
+index 2f497d1..5956b39 100644
+--- a/app/Services/TmdbClient.php
++++ b/app/Services/TmdbClient.php
+@@ -243,7 +243,7 @@ public function upcomingFilms(): array
+             return ['results' => [], 'error' => 'La clé TMDB est absente de la configuration.'];
+         }
+ 
+-        $cacheKey = 'tmdb.upcoming.v2.' . now()->toDateString();
++        $cacheKey = 'tmdb.upcoming.v3.' . now()->toDateString();
+         if ($cached = Cache::get($cacheKey)) {
+             return ['results' => $cached, 'error' => null];
+         }
+@@ -280,6 +280,8 @@ public function upcomingFilms(): array
+                 }
+             }
+ 
++            $movies = $this->withVerifiedFrenchReleaseDates($movies->unique('id'), $start, $end);
++
+             $results = $movies->map(function ($movie) {
+                 if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
+ 
+@@ -329,7 +331,7 @@ public function releasesForMonth(int $year, int $month): array
+ 
+         $start = $monthStart->isPast() ? now()->startOfDay() : $monthStart;
+ 
+-        $cacheKey = sprintf('tmdb.upcoming.month.v2.%04d-%02d.%s', $year, $month, now()->toDateString());
++        $cacheKey = sprintf('tmdb.upcoming.month.v3.%04d-%02d.%s', $year, $month, now()->toDateString());
+         if ($cached = Cache::get($cacheKey)) {
+             return ['results' => $cached, 'error' => null];
+         }
+@@ -363,6 +365,8 @@ public function releasesForMonth(int $year, int $month): array
+                 }
+             }
+ 
++            $movies = $this->withVerifiedFrenchReleaseDates($movies->unique('id'), $start->toDateString(), $monthEnd->toDateString());
++
+             $results = $movies->map(function ($movie) {
+                 if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
+ 
+@@ -581,6 +585,62 @@ private function pickTrailer(array $videos, bool $preferFrench): ?array
+      * Base HTTP client for TMDB, pointed at the configured base URL, with the
+      * v4 Bearer token attached when the configured credential is one.
+      */
++    /**
++     * TMDB's discover/movie endpoint DOES filter server-side by the requested region's release
++     * dates when `region` + `release_date.gte/lte` + `with_release_type` are combined — but the
++     * `release_date` field it returns on each result is NOT that region-specific date. It can
++     * instead be the film's original release somewhere else, often years earlier: this is
++     * exactly what makes an old film (e.g. a 2002 title getting a restored/anniversary
++     * re-release in French cinemas) show up in the results with its original release date
++     * instead of the upcoming French one.
++     *
++     * Rather than trust that field, this fetches each candidate's real per-country release
++     * calendar (`movie/{id}/release_dates`) and keeps only films that actually have a France
++     * release of the requested type (2 = limited, 3 = wide theatrical) inside the requested
++     * window, using that exact date for sorting/display/grouping instead of the unreliable one.
++     *
++     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movies
++     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
++     */
++    private function withVerifiedFrenchReleaseDates(\Illuminate\Support\Collection $movies, string $start, string $end): \Illuminate\Support\Collection
++    {
++        if ($movies->isEmpty()) {
++            return $movies;
++        }
++
++        $ids = $movies->pluck('id')->filter()->unique()->values();
++
++        $poolResponses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($ids) {
++            return $ids->map(
++                fn ($id) => $this->authorize($pool->as($id)->acceptJson())
++                    ->get(config('services.tmdb.url')."movie/{$id}/release_dates", $this->withAuth([]))
++            )->all();
++        });
++
++        return $movies->map(function ($movie) use ($poolResponses, $start, $end) {
++            $res = $poolResponses[$movie['id']] ?? null;
++
++            if (! $res || ! $res->ok()) {
++                return null;
++            }
++
++            $frenchEntry = collect($res->json('results'))->firstWhere('iso_3166_1', 'FR');
++
++            $matchingDate = collect($frenchEntry['release_dates'] ?? [])
++                ->filter(fn ($release) => in_array($release['type'] ?? null, [2, 3], true))
++                ->map(fn ($release) => substr($release['release_date'] ?? '', 0, 10))
++                ->filter(fn ($date) => $date !== '' && $date >= $start && $date <= $end)
++                ->sort()
++                ->first();
++
++            if (! $matchingDate) {
++                return null;
++            }
++
++            return [...$movie, 'release_date' => $matchingDate];
++        })->filter()->values();
++    }
++
+     private function client(): PendingRequest
+     {
+         return $this->authorize(Http::baseUrl(config('services.tmdb.url'))->acceptJson());

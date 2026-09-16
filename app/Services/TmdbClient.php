@@ -230,6 +230,11 @@ class TmdbClient
      * endpoint, capped at a handful of pages since two months of releases
      * fit comfortably within that.
      *
+     * Uses `release_date.gte/lte` + `region=FR` rather than `primary_release_date.*`:
+     * the latter filters on a movie's global primary release date regardless of region, which
+     * lets through films whose *French* release falls outside the window (or outside France
+     * entirely) as long as their worldwide primary date matches.
+     *
      * @return array{results: array<int, array<string, mixed>>, error: ?string}
      */
     public function upcomingFilms(): array
@@ -238,7 +243,7 @@ class TmdbClient
             return ['results' => [], 'error' => 'La clé TMDB est absente de la configuration.'];
         }
 
-        $cacheKey = 'tmdb.upcoming.v1.' . now()->toDateString();
+        $cacheKey = 'tmdb.upcoming.v3.' . now()->toDateString();
         if ($cached = Cache::get($cacheKey)) {
             return ['results' => $cached, 'error' => null];
         }
@@ -256,9 +261,9 @@ class TmdbClient
                     'region' => 'FR',
                     // 2 = limited theatrical, 3 = wide theatrical
                     'with_release_type' => '2|3',
-                    'sort_by' => 'primary_release_date.asc',
-                    'primary_release_date.gte' => $start,
-                    'primary_release_date.lte' => $end,
+                    'sort_by' => 'release_date.asc',
+                    'release_date.gte' => $start,
+                    'release_date.lte' => $end,
                     'page' => $page,
                 ]));
 
@@ -274,6 +279,8 @@ class TmdbClient
                     break;
                 }
             }
+
+            $movies = $this->withVerifiedFrenchReleaseDates($movies->unique('id'), $start, $end);
 
             $results = $movies->map(function ($movie) {
                 if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
@@ -300,7 +307,8 @@ class TmdbClient
     /**
      * Cinema releases (limited or wide theatrical) in France for a single calendar month, used
      * by the "/a-venir" page's month-by-month navigation (calendrier). Same France-only
-     * filtering as upcomingFilms() (region=FR + with_release_type 2|3), but scoped to one
+     * filtering as upcomingFilms() — region=FR + with_release_type 2|3 + release_date.gte/lte
+     * (regionalized, unlike primary_release_date which is global) — but scoped to one
      * month instead of a fixed 2-month window, so the page can be browsed further ahead.
      *
      * For the current month, starts from today rather than the 1st: days already past are
@@ -323,7 +331,7 @@ class TmdbClient
 
         $start = $monthStart->isPast() ? now()->startOfDay() : $monthStart;
 
-        $cacheKey = sprintf('tmdb.upcoming.month.v1.%04d-%02d.%s', $year, $month, now()->toDateString());
+        $cacheKey = sprintf('tmdb.upcoming.month.v3.%04d-%02d.%s', $year, $month, now()->toDateString());
         if ($cached = Cache::get($cacheKey)) {
             return ['results' => $cached, 'error' => null];
         }
@@ -338,9 +346,9 @@ class TmdbClient
                     'region' => 'FR',
                     // 2 = limited theatrical, 3 = wide theatrical
                     'with_release_type' => '2|3',
-                    'sort_by' => 'primary_release_date.asc',
-                    'primary_release_date.gte' => $start->toDateString(),
-                    'primary_release_date.lte' => $monthEnd->toDateString(),
+                    'sort_by' => 'release_date.asc',
+                    'release_date.gte' => $start->toDateString(),
+                    'release_date.lte' => $monthEnd->toDateString(),
                     'page' => $page,
                 ]));
 
@@ -356,6 +364,8 @@ class TmdbClient
                     break;
                 }
             }
+
+            $movies = $this->withVerifiedFrenchReleaseDates($movies->unique('id'), $start->toDateString(), $monthEnd->toDateString());
 
             $results = $movies->map(function ($movie) {
                 if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
@@ -575,6 +585,62 @@ class TmdbClient
      * Base HTTP client for TMDB, pointed at the configured base URL, with the
      * v4 Bearer token attached when the configured credential is one.
      */
+    /**
+     * TMDB's discover/movie endpoint DOES filter server-side by the requested region's release
+     * dates when `region` + `release_date.gte/lte` + `with_release_type` are combined — but the
+     * `release_date` field it returns on each result is NOT that region-specific date. It can
+     * instead be the film's original release somewhere else, often years earlier: this is
+     * exactly what makes an old film (e.g. a 2002 title getting a restored/anniversary
+     * re-release in French cinemas) show up in the results with its original release date
+     * instead of the upcoming French one.
+     *
+     * Rather than trust that field, this fetches each candidate's real per-country release
+     * calendar (`movie/{id}/release_dates`) and keeps only films that actually have a France
+     * release of the requested type (2 = limited, 3 = wide theatrical) inside the requested
+     * window, using that exact date for sorting/display/grouping instead of the unreliable one.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movies
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function withVerifiedFrenchReleaseDates(\Illuminate\Support\Collection $movies, string $start, string $end): \Illuminate\Support\Collection
+    {
+        if ($movies->isEmpty()) {
+            return $movies;
+        }
+
+        $ids = $movies->pluck('id')->filter()->unique()->values();
+
+        $poolResponses = Http::pool(function (\Illuminate\Http\Client\Pool $pool) use ($ids) {
+            return $ids->map(
+                fn ($id) => $this->authorize($pool->as($id)->acceptJson())
+                    ->get(config('services.tmdb.url')."movie/{$id}/release_dates", $this->withAuth([]))
+            )->all();
+        });
+
+        return $movies->map(function ($movie) use ($poolResponses, $start, $end) {
+            $res = $poolResponses[$movie['id']] ?? null;
+
+            if (! $res || ! $res->ok()) {
+                return null;
+            }
+
+            $frenchEntry = collect($res->json('results'))->firstWhere('iso_3166_1', 'FR');
+
+            $matchingDate = collect($frenchEntry['release_dates'] ?? [])
+                ->filter(fn ($release) => in_array($release['type'] ?? null, [2, 3], true))
+                ->map(fn ($release) => substr($release['release_date'] ?? '', 0, 10))
+                ->filter(fn ($date) => $date !== '' && $date >= $start && $date <= $end)
+                ->sort()
+                ->first();
+
+            if (! $matchingDate) {
+                return null;
+            }
+
+            return [...$movie, 'release_date' => $matchingDate];
+        })->filter()->values();
+    }
+
     private function client(): PendingRequest
     {
         return $this->authorize(Http::baseUrl(config('services.tmdb.url'))->acceptJson());
