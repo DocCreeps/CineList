@@ -110,7 +110,11 @@
             <button wire:click="bulkSetPriority(2)" class="rounded-lg bg-zinc-800 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700">Priorité moyenne</button>
             <button wire:click="bulkSetPriority(3)" class="rounded-lg bg-zinc-800 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700">Priorité basse</button>
             <span class="h-4 w-px bg-zinc-700"></span>
-            <button wire:click="bulkRemove" wire:confirm="Retirer {{ count($selectedIds) }} film(s) de votre liste ?" class="rounded-lg bg-red-950/60 px-2.5 py-1 text-[11px] font-bold text-red-400 transition hover:bg-red-900/60">🗑️ Supprimer</button>
+            <button
+                type="button"
+                x-on:click="$store.confirmModal.open(@js('Retirer ' . count($selectedIds) . ' film(s) de votre liste ?'), () => $wire.bulkRemove())"
+                class="rounded-lg bg-red-950/60 px-2.5 py-1 text-[11px] font-bold text-red-400 transition hover:bg-red-900/60"
+            >🗑️ Supprimer</button>
         </div>
         @endif
 

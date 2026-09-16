@@ -197,9 +197,17 @@
                             @if($window === 'upcoming' || $window === 'in_cinema')
                             <button wire:click="add('{{ $result['tmdb_id'] }}', 'cinema')" class="rounded-lg bg-amber-950/80 border border-amber-800/60 px-2.5 py-1 text-[11px] font-bold text-amber-400 transition hover:bg-amber-900 hover:text-white">+ Cinéma</button>
                             @else
-                            <button wire:click="add('{{ $result['tmdb_id'] }}', 'streaming', 'watched')" wire:confirm="Marquer « {{ $result['title'] }} » comme déjà vu et l'ajouter à votre liste ?" class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white">Déjà vue</button>
+                            <button
+                                type="button"
+                                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $result['title'] . ' » comme déjà vu et l\'ajouter à votre liste ?'), () => $wire.add('{{ $result['tmdb_id'] }}', 'streaming', 'watched'))"
+                                class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
+                            >Déjà vue</button>
                             <button wire:click="add('{{ $result['tmdb_id'] }}', 'streaming')" class="rounded-lg bg-violet-950/80 border border-violet-800/60 px-2.5 py-1 text-[11px] font-bold text-violet-300 transition hover:bg-violet-900 hover:text-white">+ Streaming</button>
-                            <button wire:click="add('{{ $result['tmdb_id'] }}', 'streaming', 'to_rewatch')" wire:confirm="Ajouter « {{ $result['title'] }} » à votre liste « à revoir » ?" class="rounded-lg bg-sky-950/80 border border-sky-800/60 px-2.5 py-1 text-[11px] font-bold text-sky-300 transition hover:bg-sky-900 hover:text-white">Revoir</button>
+                            <button
+                                type="button"
+                                x-on:click="$store.confirmModal.open(@js('Ajouter « ' . $result['title'] . ' » à votre liste « à revoir » ?'), () => $wire.add('{{ $result['tmdb_id'] }}', 'streaming', 'to_rewatch'), { danger: false, confirmLabel: 'Ajouter' })"
+                                class="rounded-lg bg-sky-950/80 border border-sky-800/60 px-2.5 py-1 text-[11px] font-bold text-sky-300 transition hover:bg-sky-900 hover:text-white"
+                            >Revoir</button>
                             @endif
                             @endif
                         </div>

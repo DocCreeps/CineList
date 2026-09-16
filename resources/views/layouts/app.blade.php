@@ -18,6 +18,8 @@
 
         <x-site-footer />
 
+        <x-confirm-modal />
+
         @livewireScripts
     </body>
 </html>

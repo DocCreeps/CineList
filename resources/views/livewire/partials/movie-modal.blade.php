@@ -43,7 +43,11 @@
                     <p class="text-[11px] text-amber-300">
                         Saga <span class="font-bold">{{ $selectedMovie['collection']['name'] }}</span>
                     </p>
-                    <button wire:click="addCollection({{ $selectedMovie['collection']['id'] }})" wire:confirm="Ajouter tous les films de cette saga qui ne sont pas déjà dans votre liste ?" class="shrink-0 rounded-lg bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-zinc-950 transition hover:bg-amber-400">
+                    <button
+                        type="button"
+                        x-on:click="$store.confirmModal.open(@js('Ajouter tous les films de cette saga qui ne sont pas déjà dans votre liste ?'), () => $wire.addCollection({{ $selectedMovie['collection']['id'] }}), { danger: false, confirmLabel: 'Ajouter' })"
+                        class="shrink-0 rounded-lg bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-zinc-950 transition hover:bg-amber-400"
+                    >
                         + Toute la saga
                     </button>
                 </div>

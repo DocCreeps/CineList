@@ -71,7 +71,12 @@
                 <button wire:click="setStatus({{ $item->id }}, 'watched')" title="Marquer comme vu" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'=> $item->status === 'watched', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'watched'])>✓</button>
                 <button wire:click="setStatus({{ $item->id }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50'=> $item->status === 'to_rewatch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_rewatch'])>↺</button>
             </div>
-            <button wire:click="remove({{ $item->id }})" wire:confirm="Retirer ce film de votre liste ?" class="p-1 text-zinc-600 hover:text-red-400 transition" title="Retirer de la liste">
+            <button
+                type="button"
+                x-on:click="$store.confirmModal.open(@js('Retirer ce film de votre liste ?'), () => $wire.remove({{ $item->id }}))"
+                class="p-1 text-zinc-600 hover:text-red-400 transition"
+                title="Retirer de la liste"
+            >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
