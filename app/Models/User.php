@@ -14,6 +14,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 #[Fillable(['name', 'email', 'password'])]
+// 'is_admin' volontairement absent : jamais assignable via un payload utilisateur, seulement
+// en base ou via `php artisan user:make-admin`.
 #[Hidden(['password', 'remember_token', 'two_factor_recovery_codes', 'two_factor_secret'])]
 class User extends Authenticatable implements MustVerifyEmailContract
 {
@@ -21,7 +23,7 @@ class User extends Authenticatable implements MustVerifyEmailContract
     use HasFactory, MustVerifyEmail, Notifiable, TwoFactorAuthenticatable;
 
     /**
-     * Get the attributes that should be cast.
+     * Attributs à caster.
      *
      * @return array<string, string>
      */
@@ -30,10 +32,6 @@ class User extends Authenticatable implements MustVerifyEmailContract
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            // 'is_admin' est volontairement absent du $fillable de la classe (voir
-            // l'attribut Fillable ci-dessus) : il ne peut jamais être positionné via un
-            // payload utilisateur (inscription, profil...), uniquement en base ou via
-            // la commande `php artisan user:make-admin`.
             'is_admin' => 'boolean',
         ];
     }

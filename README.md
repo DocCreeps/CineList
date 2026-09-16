@@ -20,6 +20,7 @@
 
 - [Fonctionnalités](#fonctionnalités)
 - [Authentification](#authentification)
+- [Architecture](#architecture)
 - [Stack technique](#stack-technique)
 - [Prérequis](#prérequis)
 - [Installation](#installation)
@@ -69,7 +70,9 @@
 - Les films marqués **déjà vus** sont retirés des grilles principales et regroupés dans une section repliable "Déjà vus" (masquée par défaut) ; ils réapparaissent dans la grille normale si on les sélectionne explicitement via le filtre de statut.
 
 ### 🎬 Sorties cinéma (`/a-venir`)
-- Sorties en salle en France sur les deux prochains mois (types de sortie « limitée » et « large » TMDB), regroupées par mois.
+- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), un mois à la fois, regroupées par semaine.
+- Navigation mois par mois via les flèches précédent/suivant, ou saut direct à n'importe quel mois des 11 prochains via le sélecteur calendrier.
+- Pour chaque film candidat, la date de sortie française réelle est vérifiée individuellement (voir [Détails techniques](#détails-techniques)) : un film déjà sorti ailleurs dans le monde mais faisant l'objet d'une ressortie/reprise en salle en France n'apparaît qu'avec sa date de ressortie française, jamais avec sa date de sortie d'origine.
 
 ### 📊 Mon année ciné (`/statistiques`)
 - Calculé sur tous les films marqués comme vus (`watched_at` renseigné), qu'ils soient au statut « déjà vu » ou « à revoir ».
@@ -85,6 +88,11 @@
 - Si le film appartient à une saga TMDB, proposition d'ajouter toute la collection en un clic.
 - Pour un film déjà dans la liste : champ de **note personnelle** (texte libre, enregistrée par un bouton dédié) — c'est aussi ce champ qui est cherché par la recherche texte du tableau de bord.
 
+### 🛠️ Administration (`/admin/...`, réservé aux comptes admin)
+- **Codes d'invitation** (`/admin/invitations`) : génère un code avec expiration facultative et **nombre d'utilisations facultatif** (usage unique par défaut, un nombre précis, ou illimité), l'envoie directement par e-mail à la personne invitée ou l'affiche à copier-coller, liste tous les codes existants avec leur statut (disponible, épuisé ou expiré) et l'historique de qui l'a utilisé. Un code jamais utilisé peut être révoqué (supprimé) ; un code multi-usage déjà partiellement utilisé peut être désactivé (ses utilisations restantes sont coupées, mais l'historique des inscriptions déjà faites avec ce code est conservé).
+- **Membres** (`/admin/membres`) : vue d'ensemble de tous les comptes (nombre de films par membre, genres les plus regardés tous comptes confondus), avec un détail dépliable par membre (genres, note moyenne, dernier film vu) et un bouton de **suppression définitive** d'un compte — supprime aussi tous ses films (`cascadeOnDelete`). Deux garde-fous : impossible de se supprimer soi-même depuis cette page, et impossible de supprimer le dernier compte administrateur restant.
+- Accessible uniquement aux comptes marqués `is_admin` (voir [Authentification](#authentification)) ; le lien "Admin" n'apparaît dans la navigation que pour ces comptes.
+
 ## Authentification
 
 Chaque personne a son propre compte et sa propre liste, totalement séparée de celle des autres :
@@ -95,32 +103,59 @@ leur liste sans se marcher dessus.
 ### Inscription sur invitation
 
 Il n'y a pas d'inscription publique ouverte : créer un compte nécessite un **code
-d'invitation** à usage unique.
+d'invitation**, généré soit en CLI soit par un administrateur depuis `/admin/invitations`
+(voir [Administration](#🛠️-administration-adminreservé-aux-comptes-admin)).
 
 ```bash
-php artisan invite:generate                     # code sans expiration
-php artisan invite:generate --expires-in-days=7  # code valable 7 jours
+php artisan invite:generate                       # usage unique, sans expiration
+php artisan invite:generate --expires-in-days=7    # code valable 7 jours
+php artisan invite:generate --uses=5               # jusqu'à 5 inscriptions avec ce code
+php artisan invite:generate --uses=illimite        # aucune limite d'utilisations
 ```
 
-La commande affiche un code du type `XF3K-9QRT` à partager avec la personne concernée sur
-`/inscription`. Un code ne peut servir qu'une seule fois.
+La commande affiche un code du type `XF3K-9QRT` à partager avec la ou les personnes concernées
+sur `/inscription`. Par défaut un code est à usage unique ; un administrateur peut, depuis
+`/admin/invitations` ou via `--uses`, générer un code réutilisable un nombre de fois précis ou
+sans limite (utile par ex. pour un « code famille » évolutif). Depuis `/admin/invitations`, un
+administrateur peut en plus renseigner l'e-mail du destinataire : le code lui est alors envoyé
+directement (voir [Envoi de mails](#envoi-de-mails) ci-dessous) au lieu d'être simplement affiché.
 
-### Vérification d'e-mail
+### Comptes administrateurs
 
-À l'inscription, un e-mail de confirmation est envoyé (`/verifier-email` affiche l'écran
-d'attente avec un bouton pour le renvoyer). **Tant qu'aucun mailer réel n'est configuré**
-(`MAIL_MAILER=log` par défaut), cet e-mail atterrit dans `storage/logs/laravel.log` — le lien de
-vérification y est visible et fonctionne, mais ce n'est utilisable que par toi, en local.
+Le rôle admin (colonne `is_admin` sur `users`) donne accès à `/admin/*` et ne peut être positionné
+que par un administrateur système, jamais via un formulaire :
 
-L'accès à l'application n'exige **pas** encore l'e-mail vérifié (seulement une session
+```bash
+php artisan user:make-admin ton@email.fr           # accorde les droits admin
+php artisan user:make-admin ton@email.fr --revoke  # les retire
+```
+
+### Double authentification (2FA)
+
+Chaque compte peut activer la 2FA (TOTP, compatible Google Authenticator/Authy et équivalents)
+depuis `/parametres/double-authentification`, avec codes de récupération à usage unique. Une fois
+activée, la connexion redirige vers un écran de vérification du code (`/deux-facteurs/verification`)
+avant l'authentification définitive. La liste des sessions actives est consultable et révocable
+individuellement depuis `/parametres/sessions`.
+
+### Envoi de mails
+
+L'e-mail de vérification de compte, la réinitialisation de mot de passe et l'envoi de codes
+d'invitation passent tous par le mailer Laravel configuré dans `.env`. **Tant qu'aucun mailer réel
+n'est configuré** (`MAIL_MAILER=log` par défaut), ces e-mails atterrissent dans
+`storage/logs/laravel.log` — les liens/codes y sont visibles et fonctionnels, mais uniquement en
+local. Pour un envoi réel, passer `MAIL_MAILER` à `smtp` (ou un autre transport supporté par
+Laravel) et renseigner les identifiants du fournisseur choisi.
+
+L'accès à l'application n'exige **pas** l'e-mail vérifié par défaut (seulement une session
 connectée), pour ne pas se retrouver bloqué avant d'avoir configuré un vrai mailer. Une fois un
-mailer configuré, ajouter le middleware `verified` au groupe de routes principal dans
-`routes/web.php` pour l'exiger.
+mailer configuré, passer `REQUIRE_EMAIL_VERIFICATION=true` dans `.env` pour l'exiger (voir
+`config/auth.php` — `routes/web.php` en tient compte automatiquement).
 
 ### Mot de passe oublié
 
-Fonctionne par e-mail (`/mot-de-passe-oublie`), donc soumis à la même limite : sans mailer réel,
-le lien atterrit dans `storage/logs/laravel.log` plutôt que dans une boîte mail.
+Fonctionne par e-mail (`/mot-de-passe-oublie`), donc soumis à la même limite que ci-dessus : sans
+mailer réel, le lien atterrit dans `storage/logs/laravel.log` plutôt que dans une boîte mail.
 
 ### Films ajoutés avant la mise en place des comptes
 
@@ -137,13 +172,95 @@ php artisan watchlist:assign-owner ton@email.fr
 
 - Mots de passe hashés automatiquement (cast `hashed` sur `User::password`, bcrypt).
 - Limitation des tentatives de connexion : 5 essais par couple e-mail + IP, verrouillage 60s.
+- Limitation des tentatives d'inscription : 10 essais par IP et par minute (les composants
+  Livewire ne passant pas par le routeur HTTP classique, cette limite est appliquée manuellement
+  dans `App\Livewire\Auth\Register`, pas via un middleware de route).
+- Limitation de la génération de codes d'invitation côté admin : 10 par minute et par
+  administrateur, pour éviter un abus en cas de compte admin compromis.
 - Régénération de la session à la connexion et à l'inscription (protection contre la fixation
   de session).
 - Message de confirmation identique qu'un e-mail existe ou non sur "mot de passe oublié"
   (pas d'énumération de comptes).
 - Lien de vérification d'e-mail signé et limité en fréquence (`signed`, `throttle:6,1`).
-- `user_id` volontairement absent du `$fillable` de `WatchlistItem` : il n'est jamais modifiable
-  via un payload, uniquement via l'utilisateur actuellement connecté.
+- `user_id` volontairement absent du `$fillable` de `WatchlistItem`, `is_admin` absent de celui
+  de `User` : ni l'un ni l'autre n'est jamais modifiable via un payload utilisateur, uniquement en
+  base ou via les commandes artisan dédiées.
+- Zone `/admin` protégée par trois couches : session connectée (`auth`), ré-authentification par
+  mot de passe récente (`password.confirm`, comme les pages de `/parametres`), et rôle admin
+  (middleware `admin`, voir `App\Http\Middleware\EnsureUserIsAdmin`).
+- Suppression d'un membre (`/admin/membres`) impossible sur son propre compte, et impossible sur
+  le dernier compte administrateur restant, pour ne jamais se retrouver sans accès à
+  l'administration.
+- En-têtes HTTP de durcissement appliqués à toutes les réponses (`App\Http\Middleware\SetSecurityHeaders`) :
+  `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, et
+  `Strict-Transport-Security` en HTTPS.
+- 2FA disponible par compte (voir ci-dessus).
+
+## Architecture
+
+Le code applicatif est organisé en couches, chacune avec une responsabilité précise, plutôt que
+de laisser les composants Livewire mélanger interface et logique métier :
+
+```
+app/
+├── Livewire/          Composants d'interface (état, validation de saisie, orchestration).
+│   ├── Auth/          Connexion, inscription, mot de passe, 2FA...
+│   ├── Settings/       Profil, mot de passe, 2FA, sessions
+│   ├── Admin/          Invitations, membres (réservé aux admins)
+│   ├── Watchlist/       Tableau de bord
+│   ├── Search/, Upcoming/, Stats/
+│   └── Concerns/        Traits partagés entre plusieurs composants (ex. InteractsWithMovies)
+├── Actions/            Logique métier, indépendante de l'UI : une classe = une opération.
+│   ├── Watchlist/      Filtrage/tri de la liste, ajout d'un film ou d'une saga, changement
+│   │                   de statut, compteurs, statistiques
+│   ├── Admin/          Vue d'ensemble des membres, détail par membre
+│   ├── InviteCodes/    Génération d'un code d'invitation
+│   └── Fortify/        Hooks d'authentification (création de compte, réinitialisation...)
+├── Models/              Persistance, relations, scopes globaux (ex. l'isolation par utilisateur
+│                        sur WatchlistItem), casts.
+├── Services/            Intégrations externes (TmdbClient : appels à l'API TMDB, cache).
+├── Support/             Petits utilitaires purs, sans état ni dépendance base de données.
+│   └── Movies/          Classification d'un film par fenêtre de sortie (ReleaseWindow).
+├── Mail/                Mailables (ex. InviteCodeMail).
+└── Http/Middleware/     Middlewares transverses (rôle admin, en-têtes de sécurité).
+```
+
+**Principe suivi** : un composant Livewire lit son propre état (propriétés publiques, saisies du
+formulaire) et l'UI, mais délègue tout calcul un peu conséquent — construction de requête avec
+filtres multiples, agrégations, règles métier (ex. quand horodater `watched_at`) — à une classe
+`Action` dédiée, injectée via le conteneur (comme `TmdbClient` l'était déjà) :
+
+```php
+// app/Livewire/Watchlist/Dashboard.php
+public function with(FilterWatchlistItems $filter): array
+{
+    return $filter->handle(statusFilter: $this->statusFilter, /* ... */);
+}
+```
+
+```php
+// app/Actions/Watchlist/FilterWatchlistItems.php
+class FilterWatchlistItems
+{
+    public function handle(array $statusFilter = [], /* ... */): array
+    {
+        // construction de la requête, agrégations, tri...
+    }
+}
+```
+
+Avantages concrets de cette séparation :
+- une Action est testable isolément, sans monter un composant Livewire complet ;
+- une même Action est réutilisable par plusieurs pages (ex. `WatchlistStatusCounts` sert à la
+  fois à l'accueil et au tableau de bord ; `AddMovieToWatchlist`/`AddCollectionToWatchlist`
+  servent à la recherche, aux sorties à venir, à l'accueil et au tableau de bord via le trait
+  `InteractsWithMovies`) ;
+- un composant Livewire reste court et lisible : il orchestre l'UI, il n'implémente pas les
+  règles métier.
+
+Les opérations ponctuelles et sans ambiguïté (récupérer/mettre à jour/supprimer un seul
+enregistrement en réaction directe à un clic) restent en revanche directement dans le composant :
+extraire `WatchlistItem::findOrFail($id)->delete()` dans une Action séparée n'apporterait rien.
 
 ## Stack technique
 
@@ -186,6 +303,13 @@ php artisan serve
 
 En développement, `composer dev` lance en parallèle le serveur PHP, la queue, les logs (`pail`) et Vite en mode watch.
 
+Pour créer le tout premier compte admin une fois l'application installée :
+
+```bash
+php artisan invite:generate           # génère un code, inscris-toi sur /inscription avec
+php artisan user:make-admin toi@email.fr
+```
+
 ## Configuration TMDB
 
 L'application ne fonctionne pas sans jeton TMDB. Dans `.env` :
@@ -223,10 +347,19 @@ Les deux sont affichés dans le footer de toutes les pages, factorisé dans `res
 | `/mot-de-passe-oublie` | `auth.forgot-password` | Demande de réinitialisation |
 | `/reinitialiser-mot-de-passe/{token}` | `auth.reset-password` | Choix du nouveau mot de passe |
 | `/verifier-email` | `auth.verify-email` | Écran d'attente de vérification d'e-mail |
+| `/deux-facteurs/verification` | `auth.two-factor-challenge` | Vérification du code 2FA à la connexion |
+| `/parametres/profil` | `settings.profile` | Modification du profil |
+| `/parametres/mot-de-passe` | `settings.password` | Changement de mot de passe |
+| `/parametres/double-authentification` | `settings.two-factor` | Activation/désactivation de la 2FA |
+| `/parametres/sessions` | `settings.sessions` | Sessions actives, révocables individuellement |
+| `/admin/invitations` | `admin.invitations` | Génération/envoi/révocation de codes d'invitation (admin) |
+| `/admin/membres` | `admin.members` | Vue d'ensemble des comptes et de leurs listes (admin) |
 
-Toutes les routes ci-dessus sauf les quatre routes d'authentification (connexion, inscription,
-mot de passe oublié, réinitialisation) nécessitent une session connectée (middleware `auth`).
-Voir [Authentification](#authentification) pour le détail.
+Toutes les routes ci-dessus sauf les quatre routes d'authentification publiques (connexion,
+inscription, mot de passe oublié, réinitialisation) nécessitent une session connectée
+(middleware `auth`). Les routes `/parametres/*` et `/admin/*` exigent en plus une
+ré-authentification récente par mot de passe (`password.confirm`), et `/admin/*` exige un compte
+`is_admin` (middleware `admin`). Voir [Authentification](#authentification) pour le détail.
 
 ## Modèle de données
 
@@ -245,8 +378,18 @@ Table `watchlist_items` :
 | `note` | string, nullable | Note personnelle en texte libre, éditable depuis la modale de détails d'un film déjà dans la liste ; incluse dans la recherche texte du tableau de bord |
 | `personal_rating` | integer, nullable | Note personnelle 1 à 5, réglable par étoiles une fois le film vu ou à revoir |
 
+Table `users` : colonnes standards Laravel/Fortify (dont les colonnes 2FA) plus `is_admin`
+(boolean, `false` par défaut — voir [Comptes administrateurs](#comptes-administrateurs)).
+
 Table `invite_codes` (voir [Authentification](#authentification)) : `code` (unique), `expires_at`
-et `used_at`/`used_by` nullables — un code devient indisponible dès qu'il est utilisé une fois.
+nullable, `max_uses` (nullable = illimité, sinon nombre d'inscriptions autorisées — `1` par
+défaut) et `uses_count` (nombre d'inscriptions déjà réalisées, incrémenté à chaque usage) ; un
+code devient indisponible dès que `uses_count` atteint `max_uses`. `sent_to` (e-mail du
+destinataire si le code a été envoyé par mail) et `created_by` (administrateur à l'origine du
+code) sont nullables, pour les codes générés en CLI ou plus anciens. `used_at`/`used_by`
+(première utilisation) sont conservés pour compatibilité avec l'historique antérieur au
+multi-usage ; l'historique complet (potentiellement plusieurs comptes pour un même code) vit dans
+la table `invite_code_redemptions` (`invite_code_id`, `user_id`, horodatage).
 
 ## Détails techniques
 
@@ -254,17 +397,18 @@ et `used_at`/`used_by` nullables — un code devient indisponible dès qu'il est
 - **Double niveau de cache pour la recherche** :
   - un cache par recherche (requête + mode + année minimale), 6 heures ;
   - un cache par film (réalisateur/casting/studio), 7 jours, partagé entre toutes les recherches — un film déjà rencontré dans une recherche précédente n'est jamais re-téléchargé.
-- **Autres caches TMDB** : sorties à venir (`discover/movie`), 12 heures ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates pour l'accueil, par mois pour la page « À venir ») ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+- **Fiabilité des sorties « France »** : `discover/movie` filtre bien côté serveur par date de sortie régionale (`region=FR` + `release_date.gte/lte` + `with_release_type`), mais le champ `release_date` qu'il renvoie sur chaque résultat n'est pas cette date régionale — il peut s'agir de la toute première sortie du film n'importe où dans le monde, parfois des années plus tôt (cas typique : une ressortie/reprise en salle française d'un film déjà ancien). Pour éviter d'afficher cette date trompeuse, chaque film candidat fait l'objet d'un appel individuel à `movie/{id}/release_dates` (en pool, comme l'enrichissement de la recherche) : seule sa date de sortie France de type sortie limitée/large réellement comprise dans la période demandée est conservée, tout film sans une telle date étant écarté des résultats.
 - **Pagination studio parallélisée** : la première page détermine le nombre total de pages, les pages suivantes sont récupérées en une seule vague via `Http::pool` plutôt qu'en séquence.
 - **Bande-annonce** : récupérée via `append_to_response=credits,videos` sur l'endpoint `movie/{id}`, avec repli sur un second appel non filtré par langue si aucune vidéo française n'existe.
 - **Films similaires & sagas** : les recommandations TMDB (`movie/{id}/recommendations`, 6 films max) alimentent le bloc « Films similaires » ; l'ajout d'une saga entière (`collection/{id}`) ignore les films déjà présents dans la liste.
 - **Comptages du tableau de bord** : les compteurs par statut/source et le nombre de films « oubliés » sont calculés via des requêtes SQL groupées (`COUNT`/`GROUP BY`) plutôt qu'en chargeant toute la table en mémoire, pour rester performant même avec une liste volumineuse.
+- **Génération de code d'invitation** : garantie unique par une boucle de vérification en base (`App\Actions\InviteCodes\GenerateInviteCode`) plutôt que de compter sur la seule contrainte SQL `unique`.
 
 ## Limites connues
 
 - Films uniquement (pas de séries TV).
 - Inscription sur invitation uniquement, pas d'auto-inscription publique.
-- Pas de vérification d'e-mail obligatoire par défaut (voir [Authentification](#authentification) pour l'activer une fois un mailer réel configuré).
-- Pas d'interface d'administration pour gérer les comptes ou les codes d'invitation (tout passe par `php artisan`).
+- Pas de vérification d'e-mail obligatoire par défaut (voir [Envoi de mails](#envoi-de-mails) pour l'activer une fois un mailer réel configuré).
 - Pas de suite de tests dédiée à l'application (seuls les tests d'exemple par défaut de Laravel sont présents).
 - Pas d'intégration continue configurée.

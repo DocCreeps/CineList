@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Applique la migration.
      */
     public function up(): void
     {
@@ -22,7 +22,7 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
+     * Annule la migration.
      */
     public function down(): void
     {

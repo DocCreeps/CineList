@@ -13,7 +13,7 @@
             <p class="mt-1 text-sm text-zinc-500">Vos statistiques apparaîtront ici dès que vous aurez coché vos premiers films.</p>
         </div>
         @else
-        <!-- Stat cards -->
+        <!-- Cartes de statistiques -->
         <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Films vus</p>
@@ -53,7 +53,7 @@
             </div>
         </section>
 
-        <!-- Timeline -->
+        <!-- Frise chronologique -->
         <section class="mt-10">
             <h2 class="border-b border-zinc-800 pb-3 font-serif text-xl font-normal text-zinc-100">Historique</h2>
             <div class="mt-6 space-y-8">

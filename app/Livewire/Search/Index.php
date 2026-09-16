@@ -16,7 +16,7 @@ class Index extends Component
     public string $queryActor = '';
     public string $queryStudio = '';
 
-    /** Which field is actually sent to TMDB; the other filled fields refine the results locally. */
+    /** Champ réellement envoyé à TMDB ; les autres champs remplis affinent les résultats en local. */
     public string $searchMode = 'title';
 
     public ?int $minYear = null;
@@ -56,10 +56,10 @@ class Index extends Component
     }
 
     /**
-     * All four fields can be filled at once. One of them (by priority: titre > réalisateur >
-     * acteur > studio) drives the actual TMDB request; the other filled fields are applied
-     * afterwards as local refinements in filteredResults(). Re-evaluated on every keystroke so
-     * the field driving the request can change as the user types.
+     * Les quatre champs peuvent être remplis en même temps. L'un d'eux (par priorité : titre >
+     * réalisateur > acteur > studio) pilote la requête TMDB ; les autres champs remplis sont
+     * appliqués ensuite comme affinages locaux dans filteredResults(). Réévalué à chaque frappe,
+     * pour que le champ qui pilote la requête puisse changer au fil de la saisie.
      */
     private function refreshSearch(): void
     {
@@ -100,7 +100,7 @@ class Index extends Component
         };
     }
 
-    /** The non-empty fields (2+ chars), for display and for driving the combined filters. */
+    /** Les champs non vides (2 caractères ou plus), pour l'affichage et pour piloter les filtres combinés. */
     public function activeQueries(): array
     {
         $entries = [];
@@ -136,9 +136,9 @@ class Index extends Component
     }
 
     /**
-     * Applies whichever fields weren't used as the primary TMDB query as extra local filters
-     * (title/director substring match, or an exact/dubbing role split for actor), so results
-     * satisfy every filled field at once.
+     * Applique en filtres locaux supplémentaires les champs qui n'ont pas servi de requête TMDB
+     * principale (sous-chaîne sur titre/réalisateur, ou distinction rôle joué/doublage pour un
+     * acteur), afin que les résultats satisfassent tous les champs remplis à la fois.
      */
     private function filteredResults(): array
     {
@@ -200,8 +200,8 @@ class Index extends Component
             ];
         }
 
-        // Films already on this page that are already in the watchlist (any status),
-        // so the view can grey the card out and swap the add buttons for a status badge.
+        // Films de cette page déjà présents dans la watchlist (quel que soit le statut), pour que
+        // la vue puisse griser la carte et remplacer les boutons d'ajout par un badge de statut.
         $inList = WatchlistItem::whereIn('tmdb_id', collect($pageResults)->pluck('tmdb_id'))
             ->pluck('status', 'tmdb_id');
 

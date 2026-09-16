@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Admin;
 
+use App\Actions\Admin\ComputeMemberDetail;
+use App\Actions\Admin\ComputeMembersOverview;
 use App\Models\User;
-use App\Models\WatchlistItem;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -22,66 +24,50 @@ class Members extends Component
     }
 
     /**
-     * `WatchlistItem` porte un global scope `owner` qui restreint toute requête aux films de
-     * l'utilisateur connecté (voir WatchlistItem::booted). Une vue admin doit au contraire
-     * embrasser tous les comptes : chaque requête ci-dessous désactive explicitement ce scope.
+     * Supprime définitivement un compte membre. Ses films (`watchlist_items`) partent avec
+     * lui via la contrainte `cascadeOnDelete` sur `user_id`. Deux garde-fous : on ne peut pas
+     * se supprimer soi-même depuis cette page, ni supprimer le dernier compte administrateur
+     * restant (ce qui rendrait l'espace d'administration inaccessible).
      */
-    public function with(): array
+    public function deleteMember(int $memberId): void
     {
-        $members = User::query()
-            ->withCount(['watchlistItems' => fn ($query) => $query->withoutGlobalScope('owner')])
-            ->orderBy('created_at')
-            ->get();
+        $member = User::query()->find($memberId);
 
-        $genreCounts = WatchlistItem::query()
-            ->withoutGlobalScope('owner')
-            ->pluck('genre')
-            ->flatMap(fn ($genre) => array_map('trim', explode(',', (string) $genre)))
-            ->filter()
-            ->countBy()
-            ->sortDesc();
+        if (! $member) {
+            return;
+        }
 
-        return [
-            'members' => $members,
-            'totalFilms' => $members->sum('watchlist_items_count'),
-            'genreCounts' => $genreCounts,
-            'topGenreCount' => $genreCounts->first(),
-            'selectedMemberDetail' => $this->selectedMemberId ? $this->memberDetail($this->selectedMemberId) : null,
-        ];
+        if ($member->id === Auth::id()) {
+            session()->flash('notice', 'Impossible de supprimer votre propre compte depuis cette page.');
+
+            return;
+        }
+
+        if ($member->isAdmin() && User::query()->where('is_admin', true)->count() <= 1) {
+            session()->flash('notice', 'Impossible de supprimer le dernier compte administrateur.');
+
+            return;
+        }
+
+        $memberName = $member->name;
+        $member->delete();
+
+        if ($this->selectedMemberId === $memberId) {
+            $this->selectedMemberId = null;
+        }
+
+        session()->flash('notice', "Membre « {$memberName} » supprimé.");
     }
 
     /**
-     * Détail par catégorie (genre) pour un membre donné, calculé uniquement sur ses films vus
-     * ("watched" et "to_rewatch" comptent tous les deux comme déjà visionnés au moins une fois).
      * Calculé à la demande (seulement quand un membre est déplié) plutôt que pour tout le monde
      * d'un coup, pour ne pas alourdir la requête initiale de la page.
      */
-    protected function memberDetail(int $memberId): array
+    public function with(ComputeMembersOverview $overview, ComputeMemberDetail $detail): array
     {
-        $items = WatchlistItem::query()
-            ->withoutGlobalScope('owner')
-            ->where('user_id', $memberId)
-            ->get();
-
-        $watched = $items->whereIn('status', ['watched', 'to_rewatch']);
-
-        $genreCounts = $watched->pluck('genre')
-            ->flatMap(fn ($genre) => array_map('trim', explode(',', (string) $genre)))
-            ->filter()
-            ->countBy()
-            ->sortDesc();
-
-        $rated = $watched->whereNotNull('personal_rating');
-
-        $lastWatched = $watched->sortByDesc('watched_at')->first();
-
         return [
-            'genreCounts' => $genreCounts,
-            'topGenreCount' => $genreCounts->first(),
-            'watchedCount' => $watched->count(),
-            'toWatchCount' => $items->where('status', 'to_watch')->count(),
-            'averageRating' => $rated->isNotEmpty() ? round((float) $rated->avg('personal_rating'), 1) : null,
-            'lastWatched' => $lastWatched,
+            ...$overview->handle(),
+            'selectedMemberDetail' => $this->selectedMemberId ? $detail->handle($this->selectedMemberId) : null,
         ];
     }
 }

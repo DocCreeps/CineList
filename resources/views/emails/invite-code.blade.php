@@ -12,7 +12,15 @@ Utilise le code ci-dessous lors de ton inscription :
 @if ($expiresAt)
 Ce code expire le **{{ $expiresAt->format('d/m/Y') }}**.
 @else
-Ce code n'expire pas, mais il ne peut être utilisé qu'une seule fois.
+Ce code n'expire pas.
+@endif
+
+@if (is_null($maxUses))
+Il peut être utilisé un nombre illimité de fois.
+@elseif ($maxUses === 1)
+Il ne peut être utilisé qu'une seule fois.
+@else
+Il peut être utilisé jusqu'à {{ $maxUses }} fois.
 @endif
 
 <x-mail::button :url="$registerUrl">

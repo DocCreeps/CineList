@@ -16,13 +16,16 @@ class Invitations extends Component
 {
     public string $email = '';
     public string $expiresInDays = '';
+    // Vide = usage unique (comportement historique) ; "0" (via la case "illimité") = pas de limite.
+    public string $maxUses = '1';
+    public bool $unlimitedUses = false;
     public ?string $lastGeneratedCode = null;
 
     /** @return array<int, InviteCode> */
     public function getCodesProperty(): array
     {
         return InviteCode::query()
-            ->with(['creator', 'usedByUser'])
+            ->with(['creator', 'redemptions.user'])
             ->latest()
             ->limit(100)
             ->get()
@@ -34,6 +37,7 @@ class Invitations extends Component
         $this->validate([
             'email' => ['nullable', 'email', 'max:255'],
             'expiresInDays' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'maxUses' => ['required_unless:unlimitedUses,true', 'nullable', 'integer', 'min:1', 'max:10000'],
         ]);
 
         // Un admin malveillant/compromis ne peut pas spammer l'envoi de mails :
@@ -50,6 +54,7 @@ class Invitations extends Component
 
         $invite = $action->handle(
             expiresInDays: $this->expiresInDays !== '' ? (int) $this->expiresInDays : null,
+            maxUses: $this->unlimitedUses ? null : (int) $this->maxUses,
             sentTo: $this->email !== '' ? $this->email : null,
             creator: Auth::user(),
         );
@@ -63,12 +68,14 @@ class Invitations extends Component
             $this->lastGeneratedCode = $invite->code;
         }
 
-        $this->reset(['email', 'expiresInDays']);
+        $this->reset(['email', 'expiresInDays', 'maxUses', 'unlimitedUses']);
+        $this->maxUses = '1';
     }
 
+    /** Suppression définitive : uniquement pour un code n'ayant jamais servi (rien à garder en historique). */
     public function revoke(int $inviteCodeId): void
     {
-        $invite = InviteCode::query()->whereNull('used_at')->find($inviteCodeId);
+        $invite = InviteCode::query()->where('uses_count', 0)->find($inviteCodeId);
 
         if (! $invite) {
             return;
@@ -77,5 +84,22 @@ class Invitations extends Component
         $invite->delete();
 
         session()->flash('notice', 'Code révoqué.');
+    }
+
+    /**
+     * Désactive un code déjà partiellement utilisé (multi-usage) sans effacer son historique :
+     * fige `max_uses` à son compteur actuel, ce qui le rend immédiatement épuisé/indisponible.
+     */
+    public function disable(int $inviteCodeId): void
+    {
+        $invite = InviteCode::query()->available()->where('uses_count', '>', 0)->find($inviteCodeId);
+
+        if (! $invite) {
+            return;
+        }
+
+        $invite->update(['max_uses' => $invite->uses_count]);
+
+        session()->flash('notice', 'Code désactivé : il ne pourra plus être utilisé, mais son historique est conservé.');
     }
 }
