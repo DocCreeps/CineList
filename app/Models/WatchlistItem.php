@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WatchlistItem extends Model
 {
-    // `user_id` is intentionally left out: it's only ever set by the `creating` hook below,
-    // never through a mass-assigned payload.
+    // `user_id` volontairement absent : il n'est posé que par le hook `creating` ci-dessous,
+    // jamais via un payload en assignation de masse.
     protected $fillable = ['tmdb_id', 'title', 'year', 'poster_url', 'type', 'genre', 'director', 'actors', 'studio', 'runtime', 'imdb_rating', 'plot', 'status', 'source', 'priority', 'note', 'personal_rating', 'watched_at'];
 
     protected function casts(): array
@@ -24,10 +24,10 @@ class WatchlistItem extends Model
     }
 
     /**
-     * Every film belongs to exactly one user. A global scope keeps every existing query —
-     * search, dashboard, stats, home — automatically limited to the logged-in user's own films,
-     * without having to touch each of them individually. `creating` stamps new rows with the
-     * current user automatically.
+     * Chaque film appartient à un seul utilisateur. Un scope global limite automatiquement
+     * toutes les requêtes existantes — recherche, tableau de bord, statistiques, accueil — aux
+     * films de l'utilisateur connecté, sans avoir à les modifier une par une. `creating`
+     * estampille les nouvelles lignes avec l'utilisateur courant.
      */
     protected static function booted(): void
     {

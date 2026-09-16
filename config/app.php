@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Hôtes de tunnel de développement autorisés
+    |--------------------------------------------------------------------------
+    |
+    | Liste blanche (séparée par des virgules) des hôtes que l'application accepte
+    | de considérer comme URL racine lorsqu'un en-tête X-Forwarded-Host est reçu
+    | en environnement local (Cloudflare Tunnel / Localtunnel / Ngrok). Voir
+    | App\Providers\AppServiceProvider::boot() : un hôte non listé ici est ignoré.
+    |
+    */
+
+    'tunnel_hosts' => env('TUNNEL_HOSTS', ''),
+
 ];

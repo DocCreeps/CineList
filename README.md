@@ -70,7 +70,9 @@
 - Les films marqués **déjà vus** sont retirés des grilles principales et regroupés dans une section repliable "Déjà vus" (masquée par défaut) ; ils réapparaissent dans la grille normale si on les sélectionne explicitement via le filtre de statut.
 
 ### 🎬 Sorties cinéma (`/a-venir`)
-- Sorties en salle en France sur les deux prochains mois (types de sortie « limitée » et « large » TMDB), regroupées par mois.
+- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), un mois à la fois, regroupées par semaine.
+- Navigation mois par mois via les flèches précédent/suivant, ou saut direct à n'importe quel mois des 11 prochains via le sélecteur calendrier.
+- Pour chaque film candidat, la date de sortie française réelle est vérifiée individuellement (voir [Détails techniques](#détails-techniques)) : un film déjà sorti ailleurs dans le monde mais faisant l'objet d'une ressortie/reprise en salle en France n'apparaît qu'avec sa date de ressortie française, jamais avec sa date de sortie d'origine.
 
 ### 📊 Mon année ciné (`/statistiques`)
 - Calculé sur tous les films marqués comme vus (`watched_at` renseigné), qu'ils soient au statut « déjà vu » ou « à revoir ».
@@ -87,8 +89,8 @@
 - Pour un film déjà dans la liste : champ de **note personnelle** (texte libre, enregistrée par un bouton dédié) — c'est aussi ce champ qui est cherché par la recherche texte du tableau de bord.
 
 ### 🛠️ Administration (`/admin/...`, réservé aux comptes admin)
-- **Codes d'invitation** (`/admin/invitations`) : génère un code (avec expiration facultative), l'envoie directement par e-mail à la personne invitée ou l'affiche à copier-coller, liste tous les codes existants avec leur statut (disponible / utilisé / expiré) et permet de révoquer un code non utilisé.
-- **Membres** (`/admin/membres`) : vue d'ensemble de tous les comptes (nombre de films par membre, genres les plus regardés tous comptes confondus), avec un détail dépliable par membre (genres, note moyenne, dernier film vu).
+- **Codes d'invitation** (`/admin/invitations`) : génère un code avec expiration facultative et **nombre d'utilisations facultatif** (usage unique par défaut, un nombre précis, ou illimité), l'envoie directement par e-mail à la personne invitée ou l'affiche à copier-coller, liste tous les codes existants avec leur statut (disponible, épuisé ou expiré) et l'historique de qui l'a utilisé. Un code jamais utilisé peut être révoqué (supprimé) ; un code multi-usage déjà partiellement utilisé peut être désactivé (ses utilisations restantes sont coupées, mais l'historique des inscriptions déjà faites avec ce code est conservé).
+- **Membres** (`/admin/membres`) : vue d'ensemble de tous les comptes (nombre de films par membre, genres les plus regardés tous comptes confondus), avec un détail dépliable par membre (genres, note moyenne, dernier film vu) et un bouton de **suppression définitive** d'un compte — supprime aussi tous ses films (`cascadeOnDelete`). Deux garde-fous : impossible de se supprimer soi-même depuis cette page, et impossible de supprimer le dernier compte administrateur restant.
 - Accessible uniquement aux comptes marqués `is_admin` (voir [Authentification](#authentification)) ; le lien "Admin" n'apparaît dans la navigation que pour ces comptes.
 
 ## Authentification
@@ -101,16 +103,20 @@ leur liste sans se marcher dessus.
 ### Inscription sur invitation
 
 Il n'y a pas d'inscription publique ouverte : créer un compte nécessite un **code
-d'invitation** à usage unique, généré soit en CLI soit par un administrateur depuis
-`/admin/invitations` (voir [Administration](#🛠️-administration-adminreservé-aux-comptes-admin)).
+d'invitation**, généré soit en CLI soit par un administrateur depuis `/admin/invitations`
+(voir [Administration](#🛠️-administration-adminreservé-aux-comptes-admin)).
 
 ```bash
-php artisan invite:generate                     # code sans expiration
-php artisan invite:generate --expires-in-days=7  # code valable 7 jours
+php artisan invite:generate                       # usage unique, sans expiration
+php artisan invite:generate --expires-in-days=7    # code valable 7 jours
+php artisan invite:generate --uses=5               # jusqu'à 5 inscriptions avec ce code
+php artisan invite:generate --uses=illimite        # aucune limite d'utilisations
 ```
 
-La commande affiche un code du type `XF3K-9QRT` à partager avec la personne concernée sur
-`/inscription`. Un code ne peut servir qu'une seule fois. Depuis `/admin/invitations`, un
+La commande affiche un code du type `XF3K-9QRT` à partager avec la ou les personnes concernées
+sur `/inscription`. Par défaut un code est à usage unique ; un administrateur peut, depuis
+`/admin/invitations` ou via `--uses`, générer un code réutilisable un nombre de fois précis ou
+sans limite (utile par ex. pour un « code famille » évolutif). Depuis `/admin/invitations`, un
 administrateur peut en plus renseigner l'e-mail du destinataire : le code lui est alors envoyé
 directement (voir [Envoi de mails](#envoi-de-mails) ci-dessous) au lieu d'être simplement affiché.
 
@@ -182,6 +188,9 @@ php artisan watchlist:assign-owner ton@email.fr
 - Zone `/admin` protégée par trois couches : session connectée (`auth`), ré-authentification par
   mot de passe récente (`password.confirm`, comme les pages de `/parametres`), et rôle admin
   (middleware `admin`, voir `App\Http\Middleware\EnsureUserIsAdmin`).
+- Suppression d'un membre (`/admin/membres`) impossible sur son propre compte, et impossible sur
+  le dernier compte administrateur restant, pour ne jamais se retrouver sans accès à
+  l'administration.
 - En-têtes HTTP de durcissement appliqués à toutes les réponses (`App\Http\Middleware\SetSecurityHeaders`) :
   `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, et
   `Strict-Transport-Security` en HTTPS.
@@ -373,9 +382,14 @@ Table `users` : colonnes standards Laravel/Fortify (dont les colonnes 2FA) plus 
 (boolean, `false` par défaut — voir [Comptes administrateurs](#comptes-administrateurs)).
 
 Table `invite_codes` (voir [Authentification](#authentification)) : `code` (unique), `expires_at`
-et `used_at`/`used_by` nullables — un code devient indisponible dès qu'il est utilisé une fois ;
-`sent_to` (e-mail du destinataire si le code a été envoyé par mail) et `created_by` (administrateur
-à l'origine du code) sont nullables, pour les codes générés en CLI ou plus anciens.
+nullable, `max_uses` (nullable = illimité, sinon nombre d'inscriptions autorisées — `1` par
+défaut) et `uses_count` (nombre d'inscriptions déjà réalisées, incrémenté à chaque usage) ; un
+code devient indisponible dès que `uses_count` atteint `max_uses`. `sent_to` (e-mail du
+destinataire si le code a été envoyé par mail) et `created_by` (administrateur à l'origine du
+code) sont nullables, pour les codes générés en CLI ou plus anciens. `used_at`/`used_by`
+(première utilisation) sont conservés pour compatibilité avec l'historique antérieur au
+multi-usage ; l'historique complet (potentiellement plusieurs comptes pour un même code) vit dans
+la table `invite_code_redemptions` (`invite_code_id`, `user_id`, horodatage).
 
 ## Détails techniques
 
@@ -383,7 +397,8 @@ et `used_at`/`used_by` nullables — un code devient indisponible dès qu'il est
 - **Double niveau de cache pour la recherche** :
   - un cache par recherche (requête + mode + année minimale), 6 heures ;
   - un cache par film (réalisateur/casting/studio), 7 jours, partagé entre toutes les recherches — un film déjà rencontré dans une recherche précédente n'est jamais re-téléchargé.
-- **Autres caches TMDB** : sorties à venir (`discover/movie`), 12 heures ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates pour l'accueil, par mois pour la page « À venir ») ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+- **Fiabilité des sorties « France »** : `discover/movie` filtre bien côté serveur par date de sortie régionale (`region=FR` + `release_date.gte/lte` + `with_release_type`), mais le champ `release_date` qu'il renvoie sur chaque résultat n'est pas cette date régionale — il peut s'agir de la toute première sortie du film n'importe où dans le monde, parfois des années plus tôt (cas typique : une ressortie/reprise en salle française d'un film déjà ancien). Pour éviter d'afficher cette date trompeuse, chaque film candidat fait l'objet d'un appel individuel à `movie/{id}/release_dates` (en pool, comme l'enrichissement de la recherche) : seule sa date de sortie France de type sortie limitée/large réellement comprise dans la période demandée est conservée, tout film sans une telle date étant écarté des résultats.
 - **Pagination studio parallélisée** : la première page détermine le nombre total de pages, les pages suivantes sont récupérées en une seule vague via `Http::pool` plutôt qu'en séquence.
 - **Bande-annonce** : récupérée via `append_to_response=credits,videos` sur l'endpoint `movie/{id}`, avec repli sur un second appel non filtré par langue si aucune vidéo française n'existe.
 - **Films similaires & sagas** : les recommandations TMDB (`movie/{id}/recommendations`, 6 films max) alimentent le bloc « Films similaires » ; l'ajout d'une saga entière (`collection/{id}`) ignore les films déjà présents dans la liste.

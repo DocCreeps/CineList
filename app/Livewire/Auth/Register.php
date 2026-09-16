@@ -19,17 +19,9 @@ class Register extends Component
     public string $invite_code = '';
 
     /**
-     * La validation (y compris la politique de mot de passe : 12 caractères,
-     * majuscule, minuscule, chiffre, caractère spécial) et la vérification du
-     * code d'invitation sont désormais gérées par l'Action Fortify
-     * App\Actions\Fortify\CreateNewUser. Les erreurs remontent automatiquement
-     * sous forme de ValidationException, que Livewire affiche comme d'habitude.
-     *
-     * Les composants Livewire ne passant pas par le routeur HTTP classique, ils
-     * ne bénéficient pas des limiteurs de débit déclarés sur des routes (comme
-     * celui du login dans FortifyServiceProvider). On applique donc ici une
-     * limite manuelle par IP, pour empêcher de bombarder l'inscription avec des
-     * codes d'invitation devinés ou volés.
+     * Validation et vérification du code d'invitation déléguées à
+     * App\Actions\Fortify\CreateNewUser. Limite manuelle par IP en plus (10/min) : les
+     * composants Livewire ne passent pas par le routeur HTTP, donc pas de throttle de route.
      */
     public function register(CreatesNewUsers $creator): void
     {

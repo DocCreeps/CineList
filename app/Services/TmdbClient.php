@@ -10,7 +10,11 @@ use Illuminate\Support\Facades\Log;
 
 class TmdbClient
 {
-    /** @return array{results: array<int, array<string, mixed>>, error: ?string} */
+    /**
+     * Recherche de films sur TMDB selon le mode choisi (titre, réalisateur, acteur ou studio).
+     *
+     * @return array{results: array<int, array<string, mixed>>, error: ?string}
+     */
     public function searchFilms(string $query, string $mode = 'title', ?int $minYear = null): array
     {
         if (blank(config('services.tmdb.token'))) {
@@ -20,8 +24,8 @@ class TmdbClient
             return ['results' => [], 'error' => null];
         }
 
-        // Bump when the shape/logic of the cached results changes, so stale
-        // entries from a previous version of this method never get served.
+        // À incrémenter quand la forme ou la logique des résultats mis en cache change, pour
+        // ne jamais resservir une entrée périmée issue d'une version précédente de la méthode.
         $cacheVersion = 'v5';
         $cacheKey = 'tmdb.search.' . $cacheVersion . '.' . $mode . '.' . md5(strtolower(trim($query))) . '.y' . ($minYear ?? 'all');
         if ($cached = Cache::get($cacheKey)) {
@@ -56,8 +60,9 @@ class TmdbClient
 
                 $companyId = $companyResponse->json('results.0.id');
 
-                // First page tells us how many pages exist; fetch the rest (if any) all at
-                // once via pool instead of one-by-one, since each page is independent.
+                // La première page indique combien de pages existent ; les suivantes (s'il y en a)
+                // sont récupérées d'un coup via un pool plutôt qu'une par une, chaque page étant
+                // indépendante des autres.
                 $firstPage = $this->client()->get('discover/movie', $this->withAuth([
                     'language' => 'fr-FR',
                     'with_companies' => $companyId,
@@ -73,9 +78,9 @@ class TmdbClient
                 $firstData = $firstPage->json();
                 $movies = $movies->merge($firstData['results'] ?? []);
 
-                // Capped generously since even prolific studios (Ghibli, Pixar…) fit within a
-                // few pages; a studio with more than this many pages is an edge case not worth
-                // widening the cap for.
+                // Plafond large : même les studios prolifiques (Ghibli, Pixar…) tiennent en
+                // quelques pages ; un studio qui dépasserait ce plafond est un cas limite qui ne
+                // justifie pas de l'élargir.
                 $maxPages = 10;
                 $totalPages = min($firstData['total_pages'] ?? 1, $maxPages);
 
@@ -130,7 +135,7 @@ class TmdbClient
                 }
             }
 
-            // Standardize basic movie format and filter out invalid ones
+            // Uniformise le format de base des films et écarte les entrées invalides
             $movies = $movies->map(function ($movie) {
                 if (empty($movie['id']) || empty($movie['title'])) return null;
                 $year = isset($movie['release_date']) && $movie['release_date'] ? (int) substr($movie['release_date'], 0, 4) : null;
@@ -145,32 +150,33 @@ class TmdbClient
                     'type' => 'movie',
                     'plot' => $movie['overview'] ?? null,
                     'imdb_rating' => !empty($movie['vote_average']) ? round($movie['vote_average'], 1) : null,
-                    // TMDB has no clean "dubbing role" flag. Many voice credits do say
-                    // so directly ("Woody (voice)", "Narrator (voice)"), but a lot of
-                    // community-edited entries omit it — so a credit on a movie tagged
-                    // Animation (genre id 16) is treated as a dubbing role too, since
-                    // there's no such thing as being on-screen in an animated film.
+                    // TMDB n'a pas d'indicateur propre pour les rôles de doublage. Beaucoup de
+                    // crédits voix le précisent directement ("Woody (voice)", "Narrator (voice)"),
+                    // mais de nombreuses fiches éditées par la communauté l'omettent — un crédit sur
+                    // un film classé Animation (genre id 16) est donc lui aussi traité comme du
+                    // doublage, puisqu'on ne peut pas apparaître à l'écran dans un film d'animation.
                     'is_voice' => str_contains($character, 'voice')
                         || str_contains($character, 'narrat')
                         || in_array(16, $movie['genre_ids'] ?? [], true),
                 ];
             })->filter()->unique('tmdb_id');
 
-            // Apply min year filter
+            // Applique le filtre sur l'année minimale
             if ($minYear) {
                 $movies = $movies->filter(fn($m) => $m['year'] !== null && $m['year'] >= $minYear);
             }
 
-            // Sort by year desc, nulls at bottom. No arbitrary cap here: for
-            // 'title' TMDB already limits to ~20 results per page, but an
-            // actor/director search must be able to return a full filmography.
+            // Tri par année décroissante, valeurs nulles en fin de liste. Pas de plafond
+            // arbitraire ici : en mode 'title' TMDB limite déjà à ~20 résultats par page, mais une
+            // recherche par acteur/réalisateur doit pouvoir renvoyer une filmographie complète.
             $movies = $movies->sortByDesc(fn($m) => $m['year'] ?? -9999)->values();
 
-            // Fetch missing details (director, actors, studio) to show on cards. Cached per
-            // movie (independent of the per-query cache above and much longer-lived, since a
-            // movie's director/cast/studio never change) so a movie already seen in any past
-            // search — even under a totally different query — is served instantly here instead
-            // of re-hitting TMDB. Only genuine cache misses go through the pool.
+            // Récupère les détails manquants (réalisateur, acteurs, studio) affichés sur les
+            // cartes. Mis en cache par film (indépendamment du cache par requête ci-dessus, et
+            // bien plus longtemps puisque le réalisateur/casting/studio d'un film ne changent
+            // jamais) : un film déjà croisé dans une recherche passée — même sur une requête
+            // totalement différente — est servi instantanément au lieu de rappeler TMDB. Seuls
+            // les vrais défauts de cache passent par le pool.
             $results = $movies->all();
             if (count($results) > 0) {
                 $detailsCacheKey = fn(string $id) => 'tmdb.movie.details.v1.' . $id;
@@ -225,15 +231,9 @@ class TmdbClient
     }
 
     /**
-     * Cinema releases (limited or wide theatrical) in France over the next two
-     * months, sorted chronologically. Paginates through TMDB's discover
-     * endpoint, capped at a handful of pages since two months of releases
-     * fit comfortably within that.
-     *
-     * Uses `release_date.gte/lte` + `region=FR` rather than `primary_release_date.*`:
-     * the latter filters on a movie's global primary release date regardless of region, which
-     * lets through films whose *French* release falls outside the window (or outside France
-     * entirely) as long as their worldwide primary date matches.
+     * Sorties en salles (exploitation limitée ou large) en France sur les deux prochains mois,
+     * triées chronologiquement. Filtre sur `release_date` + `region=FR` plutôt que sur
+     * `primary_release_date` (global, qui ignore la région) — voir withVerifiedFrenchReleaseDates().
      *
      * @return array{results: array<int, array<string, mixed>>, error: ?string}
      */
@@ -259,7 +259,7 @@ class TmdbClient
                 $response = $this->client()->get('discover/movie', $this->withAuth([
                     'language' => 'fr-FR',
                     'region' => 'FR',
-                    // 2 = limited theatrical, 3 = wide theatrical
+                    // 2 = sortie en salles limitée, 3 = sortie en salles large
                     'with_release_type' => '2|3',
                     'sort_by' => 'release_date.asc',
                     'release_date.gte' => $start,
@@ -305,14 +305,9 @@ class TmdbClient
     }
 
     /**
-     * Cinema releases (limited or wide theatrical) in France for a single calendar month, used
-     * by the "/a-venir" page's month-by-month navigation (calendrier). Same France-only
-     * filtering as upcomingFilms() — region=FR + with_release_type 2|3 + release_date.gte/lte
-     * (regionalized, unlike primary_release_date which is global) — but scoped to one
-     * month instead of a fixed 2-month window, so the page can be browsed further ahead.
-     *
-     * For the current month, starts from today rather than the 1st: days already past are
-     * already "sorti" and belong on the dashboard, not the upcoming page.
+     * Même filtrage France uniquement que upcomingFilms(), restreint à un seul mois calendaire,
+     * pour la navigation mois par mois de la page "/a-venir". Pour le mois en cours, part
+     * d'aujourd'hui plutôt que du 1er : les jours passés relèvent du tableau de bord, pas d'ici.
      *
      * @return array{results: array<int, array<string, mixed>>, error: ?string}
      */
@@ -344,7 +339,7 @@ class TmdbClient
                 $response = $this->client()->get('discover/movie', $this->withAuth([
                     'language' => 'fr-FR',
                     'region' => 'FR',
-                    // 2 = limited theatrical, 3 = wide theatrical
+                    // 2 = sortie en salles limitée, 3 = sortie en salles large
                     'with_release_type' => '2|3',
                     'sort_by' => 'release_date.asc',
                     'release_date.gte' => $start->toDateString(),
@@ -389,6 +384,7 @@ class TmdbClient
         }
     }
 
+    /** Fiche complète d'un film TMDB (détails, crédits, bande-annonce), mise en cache 24 h. */
     public function find(string $tmdbId): ?array
     {
         if (blank(config('services.tmdb.token'))) return null;
@@ -396,7 +392,7 @@ class TmdbClient
         return Cache::remember("tmdb.movie.v3.{$tmdbId}", now()->addDay(), function () use ($tmdbId) {
             try {
                 $response = $this->client()->get("movie/{$tmdbId}", $this->withAuth([
-                    'language' => 'fr-FR', // Ensure French
+                    'language' => 'fr-FR', // Force le français
                     'append_to_response' => 'credits,videos',
                 ]));
 
@@ -407,9 +403,10 @@ class TmdbClient
                 $actors = collect($data['credits']['cast'] ?? [])->take(3)->pluck('name')->implode(', ');
                 $studio = collect($data['production_companies'] ?? [])->pluck('name')->implode(', ');
 
-                // The fr-FR request above only returns videos tagged as French; if the movie
-                // has none (common for older or less mainstream films), fall back to a second,
-                // unscoped request to still offer an (original-language) trailer.
+                // La requête fr-FR ci-dessus ne renvoie que les vidéos étiquetées françaises ; si
+                // le film n'en a aucune (fréquent pour les films anciens ou peu grand public), une
+                // seconde requête sans restriction de langue permet quand même de proposer une
+                // bande-annonce en version originale.
                 $trailer = $this->pickTrailer($data['videos']['results'] ?? [], preferFrench: true);
                 if (! $trailer) {
                     $videosResponse = $this->client()->get("movie/{$tmdbId}/videos", $this->withAuth([]));
@@ -444,9 +441,9 @@ class TmdbClient
     }
 
     /**
-     * Up to 6 recommended movies for a given film (TMDB's "recommendations" endpoint, which
-     * tends to be more relevant than "similar"), for the "Films similaires" strip in the
-     * details modal. Cached for 3 days since recommendations barely change day to day.
+     * Jusqu'à 6 films recommandés pour un film donné (endpoint "recommendations" de TMDB, en
+     * général plus pertinent que "similar"), pour le bandeau "Films similaires" de la modale de
+     * détails. Mis en cache 3 jours, les recommandations bougeant très peu d'un jour à l'autre.
      *
      * @return array<int, array{tmdb_id: string, title: string, year: ?int, poster_url: ?string}>
      */
@@ -481,8 +478,8 @@ class TmdbClient
     }
 
     /**
-     * All films in a TMDB "collection" (a saga: e.g. Star Wars, Toy Story), for the
-     * "+ Ajouter toute la saga" action. Cached for 3 days.
+     * Tous les films d'une "collection" TMDB (une saga : Star Wars, Toy Story…), pour l'action
+     * "+ Ajouter toute la saga". Mis en cache 3 jours.
      *
      * @return array<int, array{tmdb_id: string, title: string, release_date: ?string}>
      */
@@ -514,8 +511,8 @@ class TmdbClient
     }
 
     /**
-     * "Where to watch" providers for France (flatrate/rent/buy), from TMDB's own aggregated
-     * JustWatch data. Cached for 3 days like the other per-film lookups.
+     * Plateformes "où regarder" pour la France (abonnement/location/achat), issues des données
+     * JustWatch agrégées par TMDB. Mises en cache 3 jours, comme les autres appels par film.
      *
      * @return array{link: ?string, flatrate: array<int, array{name: string, logo_url: ?string}>, rent: array, buy: array}
      */
@@ -553,10 +550,10 @@ class TmdbClient
     }
 
     /**
-     * Picks the best trailer from a TMDB videos list: a YouTube "Trailer" (falling back to any
-     * YouTube video if no official trailer exists), preferring French audio when $preferFrench
-     * is true — otherwise just the first match, since this is already the no-French-available
-     * fallback pass.
+     * Choisit la meilleure bande-annonce dans une liste de vidéos TMDB : une vidéo YouTube de
+     * type "Trailer" (à défaut, n'importe quelle vidéo YouTube), en privilégiant la version
+     * française si $preferFrench vaut true — sinon simplement la première trouvée, ce passage
+     * étant déjà le repli utilisé quand aucune version française n'est disponible.
      *
      * @param array<int, array<string, mixed>> $videos
      * @return array{key: string, lang: string}|null
@@ -582,22 +579,12 @@ class TmdbClient
     }
 
     /**
-     * Base HTTP client for TMDB, pointed at the configured base URL, with the
-     * v4 Bearer token attached when the configured credential is one.
-     */
-    /**
-     * TMDB's discover/movie endpoint DOES filter server-side by the requested region's release
-     * dates when `region` + `release_date.gte/lte` + `with_release_type` are combined — but the
-     * `release_date` field it returns on each result is NOT that region-specific date. It can
-     * instead be the film's original release somewhere else, often years earlier: this is
-     * exactly what makes an old film (e.g. a 2002 title getting a restored/anniversary
-     * re-release in French cinemas) show up in the results with its original release date
-     * instead of the upcoming French one.
-     *
-     * Rather than trust that field, this fetches each candidate's real per-country release
-     * calendar (`movie/{id}/release_dates`) and keeps only films that actually have a France
-     * release of the requested type (2 = limited, 3 = wide theatrical) inside the requested
-     * window, using that exact date for sorting/display/grouping instead of the unreliable one.
+     * Le champ `release_date` renvoyé par discover/movie pour chaque résultat n'est PAS la date
+     * régionale ayant servi au filtrage — ce peut être la sortie d'origine ailleurs, souvent des
+     * années plus tôt (par exemple un vieux film ressorti en salles en France après restauration).
+     * Récupère donc le vrai calendrier pays par pays de chaque candidat
+     * (`movie/{id}/release_dates`) et ne garde que les films ayant une réelle sortie française
+     * (type 2/3) dans la fenêtre, en retenant cette date-là.
      *
      * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movies
      * @return \Illuminate\Support\Collection<int, array<string, mixed>>
@@ -641,16 +628,19 @@ class TmdbClient
         })->filter()->values();
     }
 
+    /**
+     * Client HTTP de base pour TMDB, pointé sur l'URL configurée, avec le jeton Bearer v4
+     * attaché quand l'identifiant configuré en est un.
+     */
     private function client(): PendingRequest
     {
         return $this->authorize(Http::baseUrl(config('services.tmdb.url'))->acceptJson());
     }
 
     /**
-     * Attach Bearer auth to a pending request, but only when the configured
-     * credential is a v4 "API Read Access Token" (a JWT). A classic v3 API
-     * key is not a valid Bearer token and must be sent as a query param
-     * instead (see withAuth()).
+     * Ajoute l'authentification Bearer à une requête, mais uniquement quand l'identifiant
+     * configuré est un "API Read Access Token" v4 (un JWT). Une clé d'API v3 classique n'est pas
+     * un Bearer valide et doit être passée en paramètre d'URL à la place (voir withAuth()).
      */
     private function authorize(PendingRequest $request): PendingRequest
     {
@@ -660,9 +650,9 @@ class TmdbClient
     }
 
     /**
-     * Adds the TMDB credential to the query string when a v3 API key is
-     * configured. v4 Bearer tokens are sent as a header instead (see
-     * authorize()), so nothing is added to the query in that case.
+     * Ajoute l'identifiant TMDB à la chaîne de requête quand une clé d'API v3 est configurée.
+     * Les jetons Bearer v4 passent par un en-tête (voir authorize()) : dans ce cas, rien n'est
+     * ajouté à l'URL.
      */
     private function withAuth(array $query): array
     {
@@ -672,9 +662,9 @@ class TmdbClient
     }
 
     /**
-     * TMDB's v4 "API Read Access Token" is a JWT (three dot-separated
-     * segments). The older v3 API key is a plain 32-character string and
-     * must never be sent as a Bearer token — TMDB rejects it with a 401.
+     * L'"API Read Access Token" v4 de TMDB est un JWT (trois segments séparés par des points).
+     * L'ancienne clé d'API v3 est une simple chaîne de 32 caractères et ne doit jamais être
+     * envoyée comme jeton Bearer — TMDB la rejette avec une 401.
      */
     private function isV4Token(string $token): bool
     {

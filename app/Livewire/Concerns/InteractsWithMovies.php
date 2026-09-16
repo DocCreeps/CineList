@@ -9,11 +9,11 @@ use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
 
 /**
- * Shared behaviour for any page that lists TMDB movies (search results,
- * upcoming releases): opening the details modal and adding a movie to
- * the watchlist. $results is the current list shown on the page and is
- * used as a fallback source when a movie hasn't been fetched from TMDB
- * individually yet.
+ * Comportement partagé par toutes les pages qui listent des films TMDB (résultats
+ * de recherche, sorties à venir) : ouverture de la modale de détails et ajout d'un
+ * film à la watchlist. $results est la liste actuellement affichée sur la page ;
+ * elle sert de source de repli quand un film n'a pas encore été récupéré
+ * individuellement auprès de TMDB.
  */
 trait InteractsWithMovies
 {
@@ -23,14 +23,18 @@ trait InteractsWithMovies
     public bool $showModal = false;
 
     /**
-     * Opens the summary modal. An item already in the watchlist has everything stored locally
-     * (no request needed) except the trailer/similar-films/collection info, which aren't
-     * persisted and are always fetched live (each cached by TmdbClient, so repeat opens are
-     * free either way). A movie not yet added is fetched from TMDB entirely, with the current
-     * $results list as a fallback.
+     * Ouvre la modale de résumé. Un film déjà dans la watchlist a tout en local (aucune requête
+     * nécessaire) sauf la bande-annonce, les films similaires et la saga, qui ne sont pas
+     * persistés et sont toujours récupérés en direct (chacun mis en cache par TmdbClient : les
+     * réouvertures sont donc gratuites). Un film pas encore ajouté est entièrement récupéré
+     * auprès de TMDB, avec la liste $results courante en repli.
      */
     public function showDetails(string $tmdbId, TmdbClient $tmdb): void
     {
+        // Un identifiant TMDB est toujours numérique ; rejette toute autre valeur avant de
+        // l'interpoler dans l'URL de l'API et dans les clés de cache (voir TmdbClient).
+        abort_unless(ctype_digit($tmdbId), 422);
+
         $fetched = $tmdb->find($tmdbId);
         $similar = $fetched ? $tmdb->similarFilms($tmdbId) : [];
         $providers = $tmdb->watchProviders($tmdbId);
@@ -55,8 +59,8 @@ trait InteractsWithMovies
                 'similar' => $similar,
                 'collection' => $collection,
                 'watch_providers' => $providers,
-                // Only present for films already in the watchlist — used by the modal to
-                // show the free-text "note" field, which otherwise has no interface.
+                // Présent uniquement pour les films déjà dans la watchlist — utilisé par la modale
+                // pour afficher le champ "note" en texte libre, qui n'a pas d'autre interface.
                 'item_id' => $item->id,
                 'note' => $item->note,
                 'status' => $item->status,
@@ -98,9 +102,9 @@ trait InteractsWithMovies
     }
 
     /**
-     * 1-5 star personal rating, toggle-off if the same star is clicked again. Lives in this
-     * shared trait (not just Dashboard) so the rating widget also works from the details modal,
-     * which is included on the search, upcoming, and home pages too.
+     * Note personnelle de 1 à 5 étoiles, annulée si on reclique la même étoile. Placée dans ce
+     * trait partagé (et pas seulement dans Dashboard) pour que la notation fonctionne aussi
+     * depuis la modale de détails, incluse sur les pages recherche, à venir et accueil.
      */
     public function setPersonalRating(int $id, int $rating): void
     {
@@ -109,7 +113,7 @@ trait InteractsWithMovies
         $newRating = $item->personal_rating === $rating ? null : $rating;
         $item->update(['personal_rating' => $newRating]);
 
-        // Keep the open modal in sync if it's showing this same film.
+        // Garde la modale ouverte synchronisée si elle affiche ce même film.
         if ($this->selectedMovie && ($this->selectedMovie['item_id'] ?? null) === $id) {
             $this->selectedMovie['personal_rating'] = $newRating;
         }
@@ -122,8 +126,9 @@ trait InteractsWithMovies
     }
 
     /**
-     * Persists the free-text "note" field from the details modal. Only reachable for a film
-     * already in the watchlist, since `$selectedMovie['item_id']` is set solely in that case.
+     * Enregistre le champ "note" en texte libre de la modale de détails. Accessible uniquement
+     * pour un film déjà dans la watchlist, `$selectedMovie['item_id']` n'étant renseigné que
+     * dans ce cas.
      */
     public function saveNote(): void
     {
@@ -132,6 +137,13 @@ trait InteractsWithMovies
         }
 
         $note = trim((string) ($this->selectedMovie['note'] ?? ''));
+
+        if (mb_strlen($note) > 2000) {
+            session()->flash('notice', 'La note est limitée à 2000 caractères.');
+
+            return;
+        }
+
         $item = WatchlistItem::findOrFail($this->selectedMovie['item_id']);
         $item->update(['note' => $note !== '' ? $note : null]);
         $this->selectedMovie['note'] = $item->note;
@@ -139,7 +151,7 @@ trait InteractsWithMovies
         session()->flash('notice', 'Note enregistrée.');
     }
 
-    /** Opens a random "to watch" film's details modal, to help pick something to watch. */
+    /** Ouvre la modale d'un film "à voir" tiré au hasard, pour aider à choisir quoi regarder. */
     public function surpriseMe(TmdbClient $tmdb): void
     {
         $item = WatchlistItem::where('status', 'to_watch')->inRandomOrder()->first();
@@ -150,15 +162,7 @@ trait InteractsWithMovies
         $this->showDetails($item->tmdb_id, $tmdb);
     }
 
-    /**
-     * Classifies a movie by release date to decide which add-to-list tags to show: not yet
-     * released, or released recently enough to still plausibly be in theaters (within the same
-     * ~2-month window as the Upcoming page), keeps the single "+ Cinéma" tag; anything older
-     * switches to the "Déjà vue" / "+ Streaming" / "Revoir" tags instead.
-     *
-     * Delegates to App\Support\Movies\ReleaseWindow (kept as a thin wrapper here since the
-     * Blade views call it as $this->releaseWindow(...) on the component instance).
-     */
+    /** Délègue à ReleaseWindow ; conservé ici car Blade l'appelle via $this->releaseWindow(...). */
     public function releaseWindow(?string $releaseDate): string
     {
         return ReleaseWindow::classify($releaseDate);
@@ -166,13 +170,16 @@ trait InteractsWithMovies
 
     public function add(TmdbClient $tmdb, AddMovieToWatchlist $action, string $tmdbId, string $source, string $status = 'to_watch'): void
     {
+        abort_unless(ctype_digit($tmdbId), 422);
+
         $result = $action->handle($tmdb, $tmdbId, $source, $status, $this->results);
         session()->flash('notice', $result['message']);
     }
 
     /**
-     * Adds every not-yet-added film in a TMDB collection (a saga) to the watchlist in one go,
-     * each tagged "cinéma" or "streaming" per its own release date like a normal single add.
+     * Ajoute d'un coup à la watchlist tous les films pas encore présents d'une collection TMDB
+     * (une saga), chacun étiqueté "cinéma" ou "streaming" selon sa propre date de sortie,
+     * exactement comme un ajout simple.
      */
     public function addCollection(int $collectionId, TmdbClient $tmdb, AddCollectionToWatchlist $action): void
     {

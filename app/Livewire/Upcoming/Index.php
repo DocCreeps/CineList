@@ -41,9 +41,21 @@ class Index extends Component
         $this->shiftMonth(1);
     }
 
-    /** Déclenché par le sélecteur "calendrier" (liste déroulante des mois disponibles). */
+    /**
+     * Déclenché par le sélecteur "calendrier" (liste déroulante des mois disponibles).
+     * $period est une propriété publique Livewire, donc modifiable côté client avec une valeur
+     * arbitraire : currentMonth() retombe sur le mois courant si le format est invalide, et on
+     * revient aussi au mois courant si la valeur est syntaxiquement correcte mais hors de la
+     * plage navigable (avant aujourd'hui ou trop loin dans le futur).
+     */
     public function updatedPeriod(): void
     {
+        $date = $this->currentMonth();
+
+        if (! $this->isNavigable($date)) {
+            $this->period = now()->format('Y-m');
+        }
+
         $this->loadResults();
     }
 
@@ -66,7 +78,15 @@ class Index extends Component
 
     private function currentMonth(): Carbon
     {
-        return Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
+        try {
+            return Carbon::createFromFormat('Y-m', $this->period)->startOfMonth();
+        } catch (\Exception) {
+            // $period ne respecte pas le format "YYYY-MM" (valeur corrompue ou forgée côté
+            // client) : on retombe sur le mois courant plutôt que de laisser planter la page.
+            $this->period = now()->format('Y-m');
+
+            return now()->startOfMonth();
+        }
     }
 
     private function minMonth(): Carbon

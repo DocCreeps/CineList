@@ -1,7 +1,7 @@
 <main class="min-h-screen">
     <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-8 lg:px-12 lg:pb-14">
 
-        <!-- Page intro -->
+        <!-- Introduction de la page -->
         <div class="flex flex-col gap-4 border-b border-zinc-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Ma sélection</p>
@@ -21,7 +21,7 @@
 
         @include('livewire.partials.notice')
 
-        <!-- Filter Controls (multi-select: several statuses / sources can be active at once) -->
+        <!-- Contrôles de filtrage (multi-sélection : plusieurs statuts / sources peuvent être actifs en même temps) -->
         <div class="mt-6 flex flex-col gap-4 rounded-2xl bg-zinc-900/60 p-3 border border-zinc-800/80 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par statut">
                 <span class="mr-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 pl-1">Visionnage</span>
@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <!-- Genre / director / studio / year / text filters + sort -->
+        <!-- Filtres genre / réalisateur / studio / année / texte + tri -->
         <div class="mt-3 flex flex-wrap items-center gap-2.5">
             <select wire:model.live="genreFilter" class="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-300 focus:border-amber-500/50 focus:outline-none focus:ring-0">
                 <option value="">Tous les genres</option>
@@ -96,7 +96,7 @@
             </div>
         </div>
 
-        <!-- Bulk action toolbar: appears once at least one film is checked in the grid -->
+        <!-- Barre d'actions groupées : apparaît dès qu'au moins un film est coché dans la grille -->
         @if(!empty($selectedIds))
         <div class="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-800/40 bg-amber-950/20 p-3">
             <span class="text-xs font-bold text-amber-300">{{ count($selectedIds) }} sélectionné{{ count($selectedIds) > 1 ? 's' : '' }}</span>
@@ -114,7 +114,7 @@
         </div>
         @endif
 
-        <!-- Movie Grid or Empty State -->
+        <!-- Grille de films ou état vide -->
         @if ($items->isEmpty())
         <div class="mt-8 rounded-3xl border border-dashed border-zinc-800 bg-zinc-900/30 px-6 py-16 text-center">
             <div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-zinc-800 text-xl text-amber-400 font-bold">🍿</div>
@@ -180,7 +180,7 @@
         @endif
         @endif
 
-        <!-- Already-watched films: tucked away in a collapsible section instead of cluttering the main grid -->
+        <!-- Films déjà vus : rangés dans une section repliable plutôt que d'encombrer la grille principale -->
         @if($watchedItems->isNotEmpty())
         <div class="mt-10 border-t border-zinc-800 pt-6">
             <button wire:click="toggleShowWatched" class="flex w-full items-center justify-between rounded-xl bg-zinc-900/60 border border-zinc-800/80 px-4 py-3 text-left transition hover:border-zinc-700">

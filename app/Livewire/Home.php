@@ -16,8 +16,8 @@ class Home extends Component
     {
         $toWatch = WatchlistItem::query()->where('status', 'to_watch')->orderBy('priority')->latest()->limit(6)->get();
 
-        // Cinema films still "to watch", cross-referenced against TMDB's upcoming releases
-        // (same window as the /a-venir page) so only ones with a confirmed date show up.
+        // Films "cinéma" encore "à voir", croisés avec les sorties à venir de TMDB
+        // (même fenêtre que la page /a-venir) pour n'afficher que ceux dont la date est confirmée.
         $watchlistCinemaIds = WatchlistItem::query()
             ->where('source', 'cinema')
             ->where('status', 'to_watch')

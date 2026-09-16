@@ -46,18 +46,14 @@ class FilterWatchlistItems
 
         $items = $query->get();
 
-        // Par défaut, les films "vus" sont sortis de la grille principale et rangés dans une
-        // section repliable à part — sauf si l'utilisateur a explicitement filtré sur "vu" via
-        // les puces de statut, auquel cas c'est justement ce qu'il voulait voir.
+        // "Vus" sortis de la grille principale par défaut, sauf filtre explicite sur ce statut.
         $watchedItems = collect();
         if (empty($statusFilter)) {
             $watchedItems = $items->where('status', 'watched')->values();
             $items = $items->reject(fn ($item) => $item->status === 'watched')->values();
         }
 
-        // La grille principale est ensuite scindée en deux sections bien séparées — "à voir"
-        // et "à revoir" — plutôt que de mélanger les deux statuts. L'ordre du tri ci-dessus
-        // est conservé.
+        // Grille scindée en deux sections, ordre du tri conservé.
         $toWatchItems = $items->where('status', 'to_watch')->values();
         $toRewatchItems = $items->where('status', 'to_rewatch')->values();
 
@@ -65,8 +61,7 @@ class FilterWatchlistItems
         $sourceCounts = WatchlistItem::query()->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source');
         $staleCount = WatchlistItem::query()->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3))->count();
 
-        // Seules les trois colonnes utiles aux listes déroulantes de filtre, plutôt que
-        // d'hydrater des WatchlistItem complets (affiche, résumé...) juste pour lister des valeurs.
+        // Seules les colonnes utiles aux filtres, pas des WatchlistItem complets.
         $filterFields = WatchlistItem::query()->select(['genre', 'director', 'studio'])->get();
 
         return [
@@ -80,9 +75,8 @@ class FilterWatchlistItems
                 'streaming' => (int) $sourceCounts->get('streaming', 0),
                 'stale' => $staleCount,
             ],
-            // Valeurs distinctes sur toute la liste (pas seulement le sous-ensemble filtré), pour
-            // les listes déroulantes. `genre` et `studio` sont stockés en listes séparées par
-            // virgule, donc éclatés d'abord ; `director` est déjà une valeur unique.
+            // Valeurs distinctes sur toute la liste ; genre/studio sont des listes séparées
+            // par des virgules, donc éclatés avant dédoublonnage.
             'genreOptions' => $filterFields->pluck('genre')->flatMap(fn ($g) => array_map('trim', explode(',', (string) $g)))->filter()->unique()->sort()->values(),
             'directorOptions' => $filterFields->pluck('director')->filter()->unique()->sort()->values(),
             'studioOptions' => $filterFields->pluck('studio')->flatMap(fn ($s) => array_map('trim', explode(',', (string) $s)))->filter()->unique()->sort()->values(),

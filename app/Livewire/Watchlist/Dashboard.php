@@ -12,33 +12,33 @@ class Dashboard extends Component
 {
     use InteractsWithMovies;
 
-    /** @var array<int, string> Empty means "no filter" (all statuses). */
+    /** @var array<int, string> Vide = "pas de filtre" (tous les statuts). */
     public array $statusFilter = [];
 
-    /** @var array<int, string> Empty means "no filter" (all sources). */
+    /** @var array<int, string> Vide = "pas de filtre" (toutes les sources). */
     public array $sourceFilter = [];
 
-    /** Single-value filters (open-ended sets of values, so a dropdown rather than chips). */
+    /** Filtres à valeur unique (ensembles de valeurs ouverts, donc une liste déroulante plutôt que des puces). */
     public string $genreFilter = '';
     public string $directorFilter = '';
     public string $studioFilter = '';
 
     public string $sortBy = 'priority';
 
-    /** Whether the "already watched" section is expanded (collapsed/hidden by default). */
+    /** Indique si la section "déjà vus" est dépliée (repliée/masquée par défaut). */
     public bool $showWatched = false;
 
-    /** Optional release-year bounds, same idea as the search page's minYear. */
+    /** Bornes facultatives sur l'année de sortie, même principe que le minYear de la page de recherche. */
     public ?int $minYear = null;
     public ?int $maxYear = null;
 
-    /** Matches title or personal note (case-insensitive substring). */
+    /** Recherche sur le titre ou la note personnelle (sous-chaîne, insensible à la casse). */
     public string $searchQuery = '';
 
-    /** When true, restricts the grid to "to watch" films added more than 3 months ago. */
+    /** Si vrai, restreint la grille aux films "à voir" ajoutés il y a plus de 3 mois. */
     public bool $staleOnly = false;
 
-    /** @var array<int, int> IDs currently checked in the grid, for the bulk-action toolbar. */
+    /** @var array<int, int> Identifiants cochés dans la grille, pour la barre d'actions groupées. */
     public array $selectedIds = [];
 
     public function toggleShowWatched(): void
@@ -59,9 +59,9 @@ class Dashboard extends Component
     }
 
     /**
-     * Adds every currently-displayed film to the selection (called with the visible IDs from
-     * the view). Acts as a toggle: if every visible film is already selected, it deselects
-     * them instead, so the button can also be used to clear the current view's selection.
+     * Ajoute à la sélection tous les films actuellement affichés (appelé depuis la vue avec les
+     * identifiants visibles). Fonctionne en bascule : si tous les films visibles sont déjà
+     * sélectionnés, il les désélectionne, ce qui permet aussi de vider la sélection courante.
      */
     public function selectAllVisible(int ...$ids): void
     {
@@ -77,7 +77,7 @@ class Dashboard extends Component
         $this->selectedIds = [];
     }
 
-    /** Applies the same watched-date logic as setStatus() to every selected film. */
+    /** Applique à chaque film sélectionné la même logique de date de visionnage que setStatus(). */
     public function bulkSetStatus(string $status, UpdateWatchlistItemStatus $action): void
     {
         abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
@@ -130,7 +130,7 @@ class Dashboard extends Component
         $this->sortBy = $sort;
     }
 
-    /** Adds $value to $list, or removes it if already present, so filter chips act as toggles. */
+    /** Ajoute $value à $list, ou l'en retire si elle y est déjà : les puces de filtre agissent en bascule. */
     private function toggled(array $list, string $value): array
     {
         return in_array($value, $list, true)

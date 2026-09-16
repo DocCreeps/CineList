@@ -32,6 +32,7 @@ class InviteCodeMail extends Mailable implements \Illuminate\Contracts\Queue\Sho
             with: [
                 'code' => $this->inviteCode->code,
                 'expiresAt' => $this->inviteCode->expires_at,
+                'maxUses' => $this->inviteCode->max_uses,
                 'registerUrl' => route('register'),
             ],
         );

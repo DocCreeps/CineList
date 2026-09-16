@@ -4,11 +4,6 @@ namespace App\Support\Movies;
 
 use Illuminate\Support\Carbon;
 
-/**
- * Classe utilitaire sans état, sans dépendance à la base de données ou à un
- * composant Livewire : facile à tester isolément et réutilisable partout
- * (actions, composants, futures commandes...).
- */
 class ReleaseWindow
 {
     /**

@@ -3,7 +3,7 @@
 
         @include('livewire.partials.notice')
 
-        <!-- Signature piece: the hero as an actual admission ticket — a dark stub for the
+        <!-- Élément signature : le bandeau principal sous forme de véritable ticket d'entrée — une souche sombre pour le
              pitch + CTAs, torn from a cream admission slip carrying the personal counts.
              The seam between them is a real row of punched perforation dots (not just a
              dashed line), which is what actually reads as "ticket" rather than "two boxes". -->
@@ -35,13 +35,13 @@
                 </div>
             </div>
 
-            <!-- Punched perforation seam: a literal row of circular holes cut through the
+            <!-- Ligne de perforation : une rangée de trous circulaires découpés à travers le
                  join, painted in the page's own background color so it reads as torn paper.
                  Horizontal row on mobile (stacked), vertical column on desktop (side by side). -->
             <div class="relative z-10 -my-3 h-6 w-full pointer-events-none lg:hidden" style="background-image: radial-gradient(circle at center, #09090b 7px, transparent 7.5px); background-size: 22px 100%; background-repeat: repeat-x; background-position: center;"></div>
             <div class="relative z-10 -mx-3 hidden w-6 shrink-0 pointer-events-none lg:block" style="background-image: radial-gradient(circle at center, #09090b 7px, transparent 7.5px); background-size: 100% 22px; background-repeat: repeat-y; background-position: center;"></div>
 
-            <!-- Admission stub: the counts, printed on a physical ticket rather than dashboard cards -->
+            <!-- Souche du ticket : les compteurs, imprimés sur un ticket physique plutôt que sur des cartes de tableau de bord -->
             <div class="relative w-full shrink-0 rounded-b-2xl border border-t-0 border-amber-900/30 bg-[#F3E7C9] p-5 text-[#3B2A1A] lg:w-[240px] lg:rounded-b-none lg:rounded-r-2xl lg:border-t lg:border-l-0 lg:p-6">
                 <div class="flex items-center justify-between">
                     <span class="font-display text-sm tracking-[0.25em]">ADMISSION</span>
@@ -71,7 +71,7 @@
             </div>
         </div>
 
-        <!-- Shortcuts: quiet ticket-tab pills, not the moment to compete with the hero -->
+        <!-- Raccourcis : pastilles discrètes en forme d'onglets de ticket, pas le moment de concurrencer le bandeau principal -->
         <section class="grid shrink-0 grid-cols-2 gap-2 lg:grid-cols-4">
             <a href="{{ route('watchlist.dashboard') }}" wire:navigate class="group flex items-center gap-2.5 rounded-full border border-zinc-800/80 bg-zinc-900/60 py-1.5 pl-1.5 pr-4 transition hover:border-amber-500/50 hover:bg-zinc-900">
                 <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-950/80 text-sm border border-amber-800/50">🍿</span>
@@ -91,7 +91,7 @@
             </a>
         </section>
 
-        <!-- Recently added / upcoming: each panel scrolls internally so the page itself never
+        <!-- Ajouts récents / à venir : chaque panneau défile en interne pour que la page elle-même ne
              grows past the viewport on desktop, whatever the size of the lists. -->
         <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
             <section class="flex min-h-0 flex-col rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-4">

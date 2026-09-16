@@ -7,12 +7,9 @@ use App\Models\WatchlistItem;
 class ComputeWatchlistStats
 {
     /**
-     * "Vus" (watched) et "à revoir" (to_rewatch) sont gardés comme deux ensembles distincts :
-     * les deux ont un timestamp `watched_at` puisque les deux ont été vus au moins une fois,
-     * mais un film "à revoir" n'est pas un visionnage terminé au sens des stats — il ne doit
-     * pas gonfler le compteur "films vus", les répartitions par genre/réalisateur, la note
-     * moyenne, ou la frise chronologique principale. Il a son propre compteur et sa propre
-     * section de frise.
+     * "Watched" et "to_rewatch" sont traités séparément : les deux ont un `watched_at`, mais
+     * "to_rewatch" ne compte pas comme visionnage terminé (compteurs, genres, note moyenne,
+     * frise principale) — il a sa propre frise et son propre compteur.
      */
     public function handle(): array
     {

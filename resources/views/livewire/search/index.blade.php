@@ -1,9 +1,9 @@
 <main>
     <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-8 lg:px-12 lg:pb-14">
 
-        <!-- Hero / Search Section -->
+        <!-- Bandeau principal / zone de recherche -->
         <section x-data="{ showHint: false }" class="relative overflow-hidden rounded-3xl border border-zinc-800/80 bg-gradient-to-b from-zinc-900/90 via-zinc-900/40 to-zinc-950 p-6 sm:p-10 lg:grid lg:grid-cols-[1fr_280px] lg:gap-12 lg:p-12 shadow-2xl">
-            <!-- Ambient Glows -->
+            <!-- Halos lumineux d'ambiance -->
             <div class="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
             <div class="absolute left-1/3 -bottom-20 h-80 w-80 rounded-full bg-red-600/10 blur-3xl pointer-events-none"></div>
 
@@ -21,11 +21,11 @@
                     Recherchez un titre, un réalisateur, un acteur ou un studio pour alimenter votre liste.
                 </p>
 
-                <!-- Search Bar -->
+                <!-- Barre de recherche -->
                 <div class="mt-8 rounded-2xl bg-zinc-900/90 p-2 shadow-2xl ring-1 ring-zinc-800/80 transition-all focus-within:ring-2 focus-within:ring-amber-500/50 focus-within:shadow-amber-950/20">
                     <div class="grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-zinc-800/80 sm:grid-cols-2 lg:grid-cols-4">
 
-                        <!-- Search: Title -->
+                        <!-- Recherche : titre -->
                         <div class="relative flex items-center gap-2.5 bg-zinc-900/90 px-3.5 py-2.5">
                             <svg class="h-4 w-4 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="7" />
@@ -40,7 +40,7 @@
                             </svg>
                         </div>
 
-                        <!-- Search: Director -->
+                        <!-- Recherche : réalisateur -->
                         <div class="relative flex items-center gap-2.5 bg-zinc-900/90 px-3.5 py-2.5">
                             <svg class="h-4 w-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="m15 10 4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2Z" />
@@ -54,7 +54,7 @@
                             </svg>
                         </div>
 
-                        <!-- Search: Actor -->
+                        <!-- Recherche : acteur -->
                         <div class="relative flex items-center gap-2.5 bg-zinc-900/90 px-3.5 py-2.5">
                             <svg class="h-4 w-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
@@ -69,7 +69,7 @@
                             </svg>
                         </div>
 
-                        <!-- Search: Studio -->
+                        <!-- Recherche : studio -->
                         <div class="relative flex items-center gap-2.5 bg-zinc-900/90 px-3.5 py-2.5">
                             <svg class="h-4 w-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="2" y="6" width="20" height="12" rx="2" />
@@ -96,7 +96,7 @@
                 </p>
             </div>
 
-            <!-- Min year filter -->
+            <!-- Filtre année minimale -->
             <aside class="relative mt-8 self-end rounded-2xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md p-6 shadow-xl">
                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-950/80 text-amber-400 border border-amber-800/50 font-bold">📅</div>
                 <label for="minYear" class="mt-4 block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Année minimale</label>
@@ -107,7 +107,7 @@
 
         @include('livewire.partials.notice')
 
-        <!-- Search Results Section -->
+        <!-- Zone des résultats de recherche -->
         @if ($hasSearched)
         <section class="mt-10" aria-live="polite">
             <div class="mb-5 flex items-end justify-between border-b border-zinc-800 pb-3">

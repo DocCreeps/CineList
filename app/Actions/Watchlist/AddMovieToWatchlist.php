@@ -8,9 +8,7 @@ use App\Services\TmdbClient;
 class AddMovieToWatchlist
 {
     /**
-     * @param  array<int, array<string, mixed>>  $fallbackResults  Résultats déjà en mémoire côté
-     *                                                              composant, utilisés si TMDB
-     *                                                              ne peut pas être requêté à nouveau.
+     * @param  array<int, array<string, mixed>>  $fallbackResults  Utilisés si TMDB est injoignable.
      * @return array{added: bool, message: string}
      */
     public function handle(TmdbClient $tmdb, string $tmdbId, string $source, string $status, array $fallbackResults = []): array
@@ -32,8 +30,7 @@ class AddMovieToWatchlist
             ...$movie,
             'source' => $source,
             'status' => $status,
-            // "Déjà vue" et "Revoir" sont ajoutés comme déjà vus, on horodate donc
-            // immédiatement ; un simple ajout "à voir" laisse le champ vide, comme avant.
+            // "Déjà vue"/"Revoir" sont ajoutés déjà vus, donc horodatés immédiatement.
             'watched_at' => $status !== 'to_watch' ? now() : null,
         ]);
 

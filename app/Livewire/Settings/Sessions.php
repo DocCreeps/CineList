@@ -5,6 +5,8 @@ namespace App\Livewire\Settings;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -45,11 +47,23 @@ class Sessions extends Component
     {
         $this->validate(['password' => ['required', 'string']]);
 
+        $throttleKey = 'logout-other-devices:'.Auth::id();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            throw ValidationException::withMessages([
+                'password' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
+            ]);
+        }
+
         if (! Hash::check($this->password, Auth::user()->password)) {
+            RateLimiter::hit($throttleKey, 60);
             $this->addError('password', 'Mot de passe incorrect.');
 
             return;
         }
+
+        RateLimiter::clear($throttleKey);
 
         // Régénère l'identifiant de la session courante et supprime toutes les
         // autres lignes de la table `sessions` pour cet utilisateur.

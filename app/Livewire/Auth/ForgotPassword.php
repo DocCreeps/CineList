@@ -18,8 +18,8 @@ class ForgotPassword extends Component
 
         Password::sendResetLink(['email' => $this->email]);
 
-        // Same outcome whether or not the address exists, so this screen can't be used to
-        // check which e-mails have an account.
+        // Même résultat que l'adresse existe ou non : cet écran ne peut pas servir à
+        // savoir quelles adresses e-mail ont un compte.
         $this->sent = true;
     }
 }

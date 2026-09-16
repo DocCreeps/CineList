@@ -1,6 +1,6 @@
 <article wire:key="movie-{{ $item->id }}" class="group relative flex flex-col overflow-hidden rounded-2xl bg-zinc-900/90 border border-zinc-800/80 transition duration-300 hover:-translate-y-1 hover:border-zinc-700 hover:shadow-2xl hover:shadow-amber-950/20">
 
-    <!-- Poster Container -->
+    <!-- Conteneur de l'affiche -->
     <button wire:click="showDetails('{{ $item->tmdb_id }}')" class="relative aspect-[2/3] w-full cursor-pointer overflow-hidden bg-zinc-950 text-left focus:outline-none" aria-label="Voir le résumé de {{ $item->title }}">
         @if($item->poster_url)
         <img src="{{ $item->poster_url }}" alt="Affiche de {{ $item->title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105 group-hover:opacity-90">
@@ -10,7 +10,7 @@
         </div>
         @endif
 
-        <!-- Badges Overlay: left-padded to leave room for the selection checkbox pinned at the same corner,
+        <!-- Badges en surimpression : décalés à gauche pour laisser la place à la case de sélection épinglée dans le même coin,
              but only while that checkbox is actually visible (hover/focus, or the film is already
              selected) — otherwise the date badge stays flush left. -->
         <div @class([ 'absolute inset-x-0 top-0 flex items-center justify-between gap-2 py-3 pr-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-[padding]' , 'pl-11'=> in_array($item->id, $selectedIds ?? []),
@@ -27,14 +27,14 @@
         </div>
     </button>
 
-    <!-- Selection checkbox, for the bulk-action toolbar: stays subtle until hovered/checked so it doesn't compete with the year badge -->
+    <!-- Case de sélection, pour la barre d'actions groupées : reste discrète tant qu'elle n'est ni survolée ni cochée, pour ne pas concurrencer le badge de l'année -->
     <label @class([ 'absolute left-2 top-2 z-20 grid h-7 w-7 cursor-pointer place-items-center rounded-md border border-white/20 bg-black/70 backdrop-blur-md transition-opacity' , 'opacity-100'=> in_array($item->id, $selectedIds ?? []),
         'opacity-0 group-hover:opacity-100 focus-within:opacity-100' => !in_array($item->id, $selectedIds ?? []),
         ]) title="Sélectionner">
         <input type="checkbox" wire:click="toggleSelect({{ $item->id }})" @checked(in_array($item->id, $selectedIds ?? [])) class="h-4 w-4 accent-amber-500">
     </label>
 
-    <!-- Movie Info -->
+    <!-- Informations du film -->
     <div class="flex flex-1 flex-col justify-between p-4">
         <div>
             <h3 class="line-clamp-1 font-bold text-zinc-100 text-base group-hover:text-amber-400 transition-colors" title="{{ $item->title }}">
@@ -47,7 +47,7 @@
                 {{ $item->source === 'streaming' ? 'Streaming' : 'Cinéma' }}
             </p>
 
-            <!-- Priority -->
+            <!-- Priorité -->
             <div class="mt-2 flex items-center gap-1" role="group" aria-label="Priorité">
                 @foreach (['1' => 'Haute', '2' => 'Moyenne', '3' => 'Basse'] as $level => $label)
                 <button wire:click="setPriority({{ $item->id }}, {{ $level }})" title="Priorité {{ $label }}" @class(['rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> (int) $item->priority === (int) $level, 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => (int) $item->priority !== (int) $level])>
@@ -56,7 +56,7 @@
                 @endforeach
             </div>
 
-            <!-- Personal rating: only meaningful once the film has actually been seen -->
+            <!-- Note personnelle : n'a de sens qu'une fois le film réellement vu -->
             @if(in_array($item->status, ['watched', 'to_rewatch'], true))
             <div class="mt-2 flex items-center gap-0.5" role="group" aria-label="Votre note">
                 @for ($star = 1; $star <= 5; $star++) <button wire:click="setPersonalRating({{ $item->id }}, {{ $star }})" title="Noter {{ $star }}/5" class="text-sm leading-none transition {{ $star <= ($item->personal_rating ?? 0) ? 'text-amber-400' : 'text-zinc-700 hover:text-zinc-500' }}">★</button>

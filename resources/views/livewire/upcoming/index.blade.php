@@ -1,7 +1,7 @@
 <main class="min-h-screen">
     <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-8 lg:px-12 lg:pb-14">
 
-        <!-- Page intro -->
+        <!-- Introduction de la page -->
         <div class="border-b border-zinc-800 pb-5">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Sorties cinéma</p>
             <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Les films à l'affiche</h1>

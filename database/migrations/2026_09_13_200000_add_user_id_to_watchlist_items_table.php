@@ -8,31 +8,34 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * Applique la migration.
      */
     public function up(): void
     {
         Schema::table('watchlist_items', function (Blueprint $table) {
-            // Nullable for now: existing rows predate accounts and have no owner yet.
-            // See the `watchlist:assign-owner` artisan command to attribute them.
+            // Nullable pour l'instant : les lignes existantes sont antérieures aux comptes et
+            // n'ont pas encore de propriétaire. Voir la commande artisan `watchlist:assign-owner`
+            // pour les attribuer.
             $table->foreignId('user_id')->nullable()->after('id')->constrained()->cascadeOnDelete();
         });
 
-        // The original unique constraint was created on the old `imdb_id` column and may still
-        // carry that name after the later rename to `tmdb_id` (SQLite keeps index names across a
-        // column rename). Drop it defensively under both possible names — `IF EXISTS` makes this
-        // a no-op if a name doesn't match anything, instead of failing the migration.
+        // La contrainte d'unicité d'origine portait sur l'ancienne colonne `imdb_id` et peut
+        // encore porter ce nom après le renommage en `tmdb_id` (SQLite conserve le nom des index
+        // lors d'un renommage de colonne). On la supprime par précaution sous les deux noms
+        // possibles — `IF EXISTS` rend l'opération sans effet si le nom ne correspond à rien,
+        // au lieu de faire échouer la migration.
         DB::statement('DROP INDEX IF EXISTS watchlist_items_imdb_id_unique');
         DB::statement('DROP INDEX IF EXISTS watchlist_items_tmdb_id_unique');
 
-        // Replaced by a per-user constraint, so two different users can each add the same film.
+        // Remplacée par une contrainte par utilisateur, pour que deux utilisateurs différents
+        // puissent chacun ajouter le même film.
         Schema::table('watchlist_items', function (Blueprint $table) {
             $table->unique(['user_id', 'tmdb_id']);
         });
     }
 
     /**
-     * Reverse the migrations.
+     * Annule la migration.
      */
     public function down(): void
     {
