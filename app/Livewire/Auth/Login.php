@@ -37,10 +37,18 @@ class Login extends Component
 
         $user = User::where('email', $this->email)->first();
 
-        if (! $user || ! Hash::check($this->password, $user->password)) {
+        if (! $user) {
             RateLimiter::hit($throttleKey, 60);
             throw ValidationException::withMessages([
                 'email' => 'Identifiants incorrects.',
+            ]);
+        }
+
+        // E-mail connu, mauvais mot de passe : l'erreur s'affiche sous le champ mot de passe.
+        if (! Hash::check($this->password, $user->password)) {
+            RateLimiter::hit($throttleKey, 60);
+            throw ValidationException::withMessages([
+                'password' => 'Mot de passe incorrect.',
             ]);
         }
 

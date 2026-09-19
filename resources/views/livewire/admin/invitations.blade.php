@@ -80,8 +80,14 @@
                         $isExhausted = $invite->isExhausted();
                         $isAvailable = $invite->isAvailable();
                         $canRevoke = $invite->uses_count === 0;
+                        // Plus d'utilisation restante : "Utilisé" si le code a servi, "Indisponible" sinon.
+                        $exhaustedLabel = $invite->uses_count > 0 ? 'Utilisé' : 'Indisponible';
                         @endphp
-                        <div class="rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-4 transition hover:border-zinc-700/60">
+                        {{-- Un code inutilisable (épuisé ou expiré) est atténué ; il retrouve toute son opacité au survol. --}}
+                        <div @class([
+                            'rounded-xl border border-zinc-800/80 bg-zinc-950/70 p-4 transition hover:border-zinc-700/60',
+                            'opacity-60 hover:opacity-100' => ! $isAvailable,
+                        ])>
                             <div class="flex flex-wrap items-center justify-between gap-4">
                                 {{-- Info Code --}}
                                 <div class="space-y-1">
@@ -92,7 +98,7 @@
                                         @if ($isAvailable)
                                         <span class="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/20">Disponible</span>
                                         @elseif ($isExhausted)
-                                        <span class="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Épuisé</span>
+                                        <span class="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">{{ $exhaustedLabel }}</span>
                                         @else
                                         <span class="rounded-full bg-red-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400 border border-red-500/20">Expiré</span>
                                         @endif
