@@ -37,7 +37,7 @@ class Profile extends Component
             'email' => $this->email,
         ]);
 
-        session()->flash('notice', 'Profil mis à jour.');
+        $this->dispatch('toast', message: 'Profil mis à jour.');
 
         $this->email = Auth::user()->fresh()->email;
     }

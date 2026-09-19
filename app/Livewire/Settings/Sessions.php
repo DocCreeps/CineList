@@ -76,7 +76,7 @@ class Sessions extends Component
         $this->password = '';
         $this->confirmingLogout = false;
 
-        session()->flash('notice', 'Déconnecté des autres appareils.');
+        $this->dispatch('toast', message: 'Déconnecté des autres appareils.');
     }
 
     /** @return array{browser: string, platform: string} */

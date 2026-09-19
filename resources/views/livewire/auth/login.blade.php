@@ -2,12 +2,6 @@
     <h1 class="font-display text-3xl tracking-wide text-zinc-100">CONNEXION</h1>
     <p class="mt-1 text-sm text-zinc-500">Accédez à votre liste de films.</p>
 
-    @if (session('notice'))
-    <div class="mt-4 rounded-xl border border-emerald-800/40 bg-emerald-950/30 px-3.5 py-2.5 text-sm text-emerald-300">
-        {{ session('notice') }}
-    </div>
-    @endif
-
     <form wire:submit="login" x-data="throttleCountdown" class="mt-6 space-y-4">
         <div>
             <label for="email" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">E-mail</label>

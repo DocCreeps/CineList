@@ -9,8 +9,6 @@
             <x-settings-nav />
         </div>
 
-        @include('livewire.partials.notice')
-
         <div class="mt-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6 shadow-2xl sm:p-8">
             <h2 class="text-sm font-bold uppercase tracking-wide text-zinc-300">Informations du profil</h2>
 

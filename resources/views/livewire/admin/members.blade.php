@@ -7,8 +7,6 @@
             @include('livewire.admin.partials.tabs')
         </div>
 
-        @include('livewire.partials.notice')
-
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
             <!-- Membres -->
             <section class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6 shadow-2xl sm:p-8">

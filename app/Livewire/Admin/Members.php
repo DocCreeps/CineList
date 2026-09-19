@@ -38,13 +38,13 @@ class Members extends Component
         }
 
         if ($member->id === Auth::id()) {
-            session()->flash('notice', 'Impossible de supprimer votre propre compte depuis cette page.');
+            $this->dispatch('toast', message: 'Impossible de supprimer votre propre compte depuis cette page.', type: 'error');
 
             return;
         }
 
         if ($member->isAdmin() && User::query()->where('is_admin', true)->count() <= 1) {
-            session()->flash('notice', 'Impossible de supprimer le dernier compte administrateur.');
+            $this->dispatch('toast', message: 'Impossible de supprimer le dernier compte administrateur.', type: 'error');
 
             return;
         }
@@ -56,7 +56,7 @@ class Members extends Component
             $this->selectedMemberId = null;
         }
 
-        session()->flash('notice', "Membre « {$memberName} » supprimé.");
+        $this->dispatch('toast', message: "Membre « {$memberName} » supprimé.");
     }
 
     /**

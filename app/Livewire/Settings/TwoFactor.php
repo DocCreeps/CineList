@@ -50,7 +50,7 @@ class TwoFactor extends Component
         $this->showingQrCode = false;
         $this->showingRecoveryCodes = true;
 
-        session()->flash('notice', 'Double authentification activée.');
+        $this->dispatch('toast', message: 'Double authentification activée.');
     }
 
     public function regenerateRecoveryCodes(GenerateNewRecoveryCodes $generate): void
@@ -67,6 +67,6 @@ class TwoFactor extends Component
         $this->showingQrCode = false;
         $this->showingRecoveryCodes = false;
 
-        session()->flash('notice', 'Double authentification désactivée.');
+        $this->dispatch('toast', message: 'Double authentification désactivée.');
     }
 }

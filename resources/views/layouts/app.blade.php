@@ -19,6 +19,8 @@
         <x-site-footer />
 
         <x-confirm-modal />
+        <x-toast />
+        <x-toast-bridge />
 
         @livewireScripts
     </body>

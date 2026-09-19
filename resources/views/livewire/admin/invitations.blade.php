@@ -7,8 +7,6 @@
             @include('livewire.admin.partials.tabs')
         </div>
 
-        @include('livewire.partials.notice')
-
         <div>
             <div class="mx-auto max-w-5xl px-4 py-8">
                 {{-- En-tête --}}
@@ -18,13 +16,6 @@
                         <p class="mt-1 text-sm text-zinc-400">Générez et gérez les accès d'inscription à la plateforme.</p>
                     </div>
                 </div>
-
-                {{-- Flash notification --}}
-                @if (session()->has('notice'))
-                <div class="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
-                    {{ session('notice') }}
-                </div>
-                @endif
 
                 {{-- Formulaire de génération --}}
                 <div class="mt-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6 shadow-2xl sm:p-8">

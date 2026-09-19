@@ -23,6 +23,9 @@
 
         <x-site-footer />
 
+        <x-toast />
+        <x-toast-bridge />
+
         @livewireScripts
     </body>
 </html>

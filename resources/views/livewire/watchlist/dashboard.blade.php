@@ -19,8 +19,6 @@
             </div>
         </div>
 
-        @include('livewire.partials.notice')
-
         <!-- Contrôles de filtrage (multi-sélection : plusieurs statuts / sources peuvent être actifs en même temps) -->
         <div class="mt-6 flex flex-col gap-4 rounded-2xl bg-zinc-900/60 p-3 border border-zinc-800/80 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
             <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par statut">

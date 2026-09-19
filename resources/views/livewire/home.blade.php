@@ -1,8 +1,6 @@
 <main class="lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
     <div class="mx-auto flex h-full max-w-7xl flex-col gap-5 px-4 pb-6 sm:px-8 lg:px-12 lg:pb-8">
 
-        @include('livewire.partials.notice')
-
         <!-- Élément signature : le bandeau principal sous forme de véritable ticket d'entrée — une souche sombre pour le
              pitch + CTAs, torn from a cream admission slip carrying the personal counts.
              The seam between them is a real row of punched perforation dots (not just a

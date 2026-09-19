@@ -24,6 +24,6 @@ class Password extends Component
 
         $this->reset('current_password', 'password', 'password_confirmation');
 
-        session()->flash('notice', 'Mot de passe mis à jour.');
+        $this->dispatch('toast', message: 'Mot de passe mis à jour.');
     }
 }

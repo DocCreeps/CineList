@@ -61,10 +61,10 @@ class Invitations extends Component
 
         if ($invite->sent_to) {
             Mail::to($invite->sent_to)->send(new InviteCodeMail($invite));
-            session()->flash('notice', "Code généré et envoyé par e-mail à {$invite->sent_to}.");
+            $this->dispatch('toast', message: "Code généré et envoyé par e-mail à {$invite->sent_to}.");
             $this->lastGeneratedCode = null;
         } else {
-            session()->flash('notice', "Code généré : {$invite->code}");
+            $this->dispatch('toast', message: "Code généré : {$invite->code}");
             $this->lastGeneratedCode = $invite->code;
         }
 
@@ -83,7 +83,7 @@ class Invitations extends Component
 
         $invite->delete();
 
-        session()->flash('notice', 'Code révoqué.');
+        $this->dispatch('toast', message: 'Code révoqué.');
     }
 
     /**
@@ -100,6 +100,6 @@ class Invitations extends Component
 
         $invite->update(['max_uses' => $invite->uses_count]);
 
-        session()->flash('notice', 'Code désactivé : il ne pourra plus être utilisé, mais son historique est conservé.');
+        $this->dispatch('toast', message: 'Code désactivé : il ne pourra plus être utilisé, mais son historique est conservé.');
     }
 }

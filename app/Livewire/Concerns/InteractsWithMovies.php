@@ -72,7 +72,7 @@ trait InteractsWithMovies
 
         $fallback = collect($this->results)->firstWhere('tmdb_id', $tmdbId);
         if (! $fetched && ! $fallback) {
-            session()->flash('notice', 'Détails indisponibles pour ce film.');
+            $this->dispatch('toast', message: 'Détails indisponibles pour ce film.', type: 'error');
             return;
         }
 
@@ -139,7 +139,7 @@ trait InteractsWithMovies
         $note = trim((string) ($this->selectedMovie['note'] ?? ''));
 
         if (mb_strlen($note) > 2000) {
-            session()->flash('notice', 'La note est limitée à 2000 caractères.');
+            $this->dispatch('toast', message: 'La note est limitée à 2000 caractères.', type: 'error');
 
             return;
         }
@@ -148,7 +148,7 @@ trait InteractsWithMovies
         $item->update(['note' => $note !== '' ? $note : null]);
         $this->selectedMovie['note'] = $item->note;
 
-        session()->flash('notice', 'Note enregistrée.');
+        $this->dispatch('toast', message: 'Note enregistrée.');
     }
 
     /** Ouvre la modale d'un film "à voir" tiré au hasard, pour aider à choisir quoi regarder. */
@@ -156,7 +156,7 @@ trait InteractsWithMovies
     {
         $item = WatchlistItem::where('status', 'to_watch')->inRandomOrder()->first();
         if (! $item) {
-            session()->flash('notice', 'Aucun film "à voir" dans votre liste pour le moment.');
+            $this->dispatch('toast', message: 'Aucun film "à voir" dans votre liste pour le moment.', type: 'info');
             return;
         }
         $this->showDetails($item->tmdb_id, $tmdb);
@@ -173,7 +173,7 @@ trait InteractsWithMovies
         abort_unless(ctype_digit($tmdbId), 422);
 
         $result = $action->handle($tmdb, $tmdbId, $source, $status, $this->results);
-        session()->flash('notice', $result['message']);
+        $this->dispatch('toast', message: $result['message'], type: $result['added'] ? 'success' : 'info');
     }
 
     /**
@@ -184,7 +184,7 @@ trait InteractsWithMovies
     public function addCollection(int $collectionId, TmdbClient $tmdb, AddCollectionToWatchlist $action): void
     {
         $result = $action->handle($collectionId, $tmdb);
-        session()->flash('notice', $result['message']);
+        $this->dispatch('toast', message: $result['message'], type: $result['added'] > 0 ? 'success' : 'info');
         $this->closeModal();
     }
 }

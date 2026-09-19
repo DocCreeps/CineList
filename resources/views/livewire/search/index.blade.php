@@ -105,8 +105,6 @@
             </aside>
         </section>
 
-        @include('livewire.partials.notice')
-
         <!-- Zone des résultats de recherche -->
         @if ($hasSearched)
         <section class="mt-10" aria-live="polite">

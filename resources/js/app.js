@@ -1,4 +1,81 @@
 document.addEventListener('alpine:init', () => {
+    /**
+     * Notifications ("toasts") globales, empilées en bas de l'écran.
+     *
+     * Deux façons de les déclencher :
+     *  - depuis une action Livewire sur la page courante : $this->dispatch('toast', message: '…', type: 'success')
+     *    (Livewire relaie tout dispatch() en événement navigateur sur `window`, capté ci-dessous) ;
+     *  - après une redirection plein-page (ex. réinitialisation du mot de passe → connexion) : le
+     *    layout flashe encore `session('notice')`, mais l'affiche via <x-toast-bridge> plutôt qu'un
+     *    encart dans la page — ce composant appelle directement $store.toast.push(...) en x-init.
+     *
+     * Chaque toast se ferme seul après sa durée, sauf en cas de survol (pause()/resume(), avec une
+     * échéance en Date.now() plutôt qu'un compteur décrémenté, pour rester juste même si l'onglet
+     * est mis en arrière-plan).
+     */
+    Alpine.store('toast', {
+        items: [],
+        _uid: 0,
+
+        push(message, type = 'success', duration = 5000) {
+            if (! message) {
+                return;
+            }
+
+            const id = ++this._uid;
+            this.items.push({ id, message, type, duration, deadline: Date.now() + duration, timer: null });
+            this._arm(id);
+        },
+
+        _arm(id) {
+            const item = this.items.find((item) => item.id === id);
+
+            if (! item) {
+                return;
+            }
+
+            clearTimeout(item.timer);
+            item.timer = setTimeout(() => this.dismiss(id), Math.max(0, item.deadline - Date.now()));
+        },
+
+        pause(id) {
+            const item = this.items.find((item) => item.id === id);
+
+            if (! item) {
+                return;
+            }
+
+            clearTimeout(item.timer);
+            item.timer = null;
+            item.remaining = item.deadline - Date.now();
+        },
+
+        resume(id) {
+            const item = this.items.find((item) => item.id === id);
+
+            if (! item || item.timer) {
+                return;
+            }
+
+            item.deadline = Date.now() + Math.max(500, item.remaining ?? item.duration);
+            this._arm(id);
+        },
+
+        dismiss(id) {
+            const item = this.items.find((item) => item.id === id);
+
+            if (item?.timer) {
+                clearTimeout(item.timer);
+            }
+
+            this.items = this.items.filter((item) => item.id !== id);
+        },
+    });
+
+    window.addEventListener('toast', (event) => {
+        Alpine.store('toast').push(event.detail?.message, event.detail?.type ?? 'success');
+    });
+
     Alpine.store('confirmModal', {
         show: false,
         title: 'Confirmation',
