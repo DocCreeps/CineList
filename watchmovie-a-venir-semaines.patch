@@ -1,0 +1,641 @@
+--- a/README.md
++++ b/README.md
+@@ -70,11 +70,11 @@
+ - Les films marqués **déjà vus** sont retirés des grilles principales et regroupés dans une section repliable "Déjà vus" (masquée par défaut) ; ils réapparaissent dans la grille normale si on les sélectionne explicitement via le filtre de statut.
+ 
+ ### 🎬 Sorties cinéma (`/a-venir`)
+-- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), en deux onglets (`?vue=sortis` pour le second) :
+-  - **À l'affiche & à venir** : **Cette semaine** (semaine cinéma, du mercredi au mardi, jour de sortie des films en France), puis **Bientôt au cinéma** (jusqu'à 3 mois plus tard, sans regroupement par semaine à l'écran, du plus proche au plus lointain) ;
+-  - **Déjà sortis** : jusqu'à 3 mois en arrière, du plus récent au plus ancien. Cet onglet n'interroge TMDB qu'à son ouverture.
++- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), présentées **semaine par semaine** — la semaine cinéma va du mercredi au mardi, jour de sortie des films en France :
++  - **Cette semaine** : bloc fixe en haut de page, toujours la semaine en cours ;
++  - **Les autres semaines** : en dessous, une seule semaine à la fois, de **3 mois en arrière à 3 mois en avant**. Flèches précédent/suivant et sélecteur « Aller à » (semaines passées / prochaines semaines) ; la semaine affichée est reflétée dans l'URL (`?semaine=2026-09-23`) pour pouvoir être partagée. La semaine en cours est absente de cette navigation, puisqu'elle est déjà affichée au-dessus. Les semaines des extrémités sont tronquées à la limite des 3 mois.
+ - Dans une même journée de sortie, les films les plus populaires passent en premier.
+-- Chargement **semaine par semaine**, pour des requêtes courtes : « Cette semaine » s'affiche d'abord, « Bientôt au cinéma » et « Déjà sortis » démarrent avec 2 semaines et un bouton **Voir plus** en charge 2 de plus, jusqu'à 3 mois.
++- Chaque semaine est **une requête TMDB courte**, mise en cache séparément : « Cette semaine » s'affiche d'abord, l'explorateur se charge juste après (sans bloquer la page), et revenir sur une semaine déjà consultée est immédiat. Récupérer 3 mois d'un coup représenterait plusieurs centaines d'appels à froid.
+ - Un film déjà présent dans la liste personnelle est affiché en grisé, avec son statut actuel à la place des boutons d'ajout (comme sur la recherche).
+ - Boutons d'ajout selon la date : **+ Cinéma** (et **Déjà vue** pour un film déjà à l'affiche, enregistré comme vu au cinéma) ; au-delà de ~2 mois après la sortie, comme sur la recherche : **Déjà vue** / **+ Streaming** / **Revoir**. Une ressortie d'un film ancien propose aussi **+ Streaming**.
+ - Pour chaque film candidat, la date de sortie française réelle est vérifiée individuellement (voir [Détails techniques](#détails-techniques)) : un film déjà sorti ailleurs dans le monde mais faisant l'objet d'une ressortie/reprise en salle en France n'apparaît qu'avec sa date de ressortie française, jamais avec sa date de sortie d'origine.
+@@ -358,7 +358,7 @@
+ | `/` | `home` | Page d'accueil |
+ | `/recherche` | `search.index` | Recherche TMDB et ajout à la liste |
+ | `/tableau-de-bord` | `watchlist.dashboard` | Liste personnelle |
+-| `/a-venir` | `upcoming.index` | Sorties cinéma : semaine en cours, 3 prochains mois, 3 derniers mois |
++| `/a-venir` | `upcoming.index` | Sorties cinéma : semaine en cours, puis navigation semaine par semaine sur ±3 mois |
+ | `/statistiques` | `stats.index` | Bilan des films vus (« Mon année ciné ») |
+ | `/connexion` | `auth.login` | Connexion |
+ | `/inscription` | `auth.register` | Création de compte (code d'invitation requis) |
+@@ -415,7 +415,7 @@
+ - **Double niveau de cache pour la recherche** :
+   - un cache par recherche (requête + mode + année minimale), 6 heures ;
+   - un cache par film (réalisateur/casting/studio), 7 jours, partagé entre toutes les recherches — un film déjà rencontré dans une recherche précédente n'est jamais re-téléchargé.
+-- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates : deux mois pour l'accueil, une semaine cinéma par entrée pour la page « À venir ») ; dates de sortie françaises de chaque film candidat, 12 heures, par film ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
++- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates : deux mois pour l'accueil, une semaine cinéma par entrée pour la page « À venir », si bien que chaque semaine parcourue n'est téléchargée qu'une fois) ; dates de sortie françaises de chaque film candidat, 12 heures, par film ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+ - **Fiabilité des sorties « France »** : `discover/movie` filtre bien côté serveur par date de sortie régionale (`region=FR` + `release_date.gte/lte` + `with_release_type`), mais le champ `release_date` qu'il renvoie sur chaque résultat n'est pas cette date régionale — il peut s'agir de la toute première sortie du film n'importe où dans le monde, parfois des années plus tôt (cas typique : une ressortie/reprise en salle française d'un film déjà ancien). Pour éviter d'afficher cette date trompeuse, chaque film candidat fait l'objet d'un appel individuel à `movie/{id}/release_dates` (en pool, comme l'enrichissement de la recherche) : seule sa date de sortie France de type sortie limitée/large réellement comprise dans la période demandée est conservée, tout film sans une telle date étant écarté des résultats. Ces appels sont envoyés par lots de 30 (pour rester sous la limite de débit de TMDB) et leur résultat est mis en cache par film, si bien que les plages voisines, ou le lendemain, ne les refont pas.
+ - **Pagination studio parallélisée** : la première page détermine le nombre total de pages, les pages suivantes sont récupérées en une seule vague via `Http::pool` plutôt qu'en séquence.
+ - **Bande-annonce** : récupérée via `append_to_response=credits,videos` sur l'endpoint `movie/{id}`, avec repli sur un second appel non filtré par langue si aucune vidéo française n'existe.
+--- a/app/Livewire/Upcoming/Index.php
++++ b/app/Livewire/Upcoming/Index.php
+@@ -10,122 +10,107 @@
+ use Livewire\Component;
+ 
+ /**
+- * Page « À venir » : sorties en salles françaises, en deux vues.
++ * Page « À venir » : sorties en salles françaises, semaine par semaine.
+  *
+- *  - « À l'affiche & à venir » : la semaine en cours, puis « Bientôt au cinéma » (jusqu'à 3 mois) ;
+- *  - « Déjà sortis » : jusqu'à 3 mois en arrière, du plus récent au plus ancien.
++ *  - en haut, « Cette semaine » : la semaine cinéma en cours, toujours affichée, non navigable ;
++ *  - en dessous, un explorateur qui montre une seule autre semaine à la fois, de 3 mois en
++ *    arrière à 3 mois en avant (la semaine en cours en est exclue : elle est déjà au-dessus).
+  *
+- * L'affichage est continu, mais le chargement se fait semaine par semaine : chaque semaine est
+- * une petite requête TMDB, mise en cache séparément. La page n'en charge que quelques-unes au
+- * départ, « Voir plus » charge les suivantes à la demande. Récupérer 3 mois d'un coup
+- * représenterait plusieurs centaines d'appels à froid.
++ * Chaque semaine est une requête TMDB courte, mise en cache séparément : naviguer d'une semaine à
++ * l'autre ne recharge jamais les autres. Récupérer 3 mois d'un coup représenterait au contraire
++ * plusieurs centaines d'appels à froid.
+  */
+ class Index extends Component
+ {
+     use InteractsWithMovies;
+ 
+-    private const TABS = ['affiche', 'sortis'];
+-
+     /** Étendue de la navigation, en mois, dans le futur comme dans le passé. */
+     private const RANGE_MONTHS = 3;
+ 
+-    /** Semaines chargées au départ dans « Bientôt » et « Déjà sortis ». */
+-    private const INITIAL_WEEKS = 2;
+-
+-    /** Semaines ajoutées à chaque clic sur « Voir plus ». */
+-    private const WEEKS_STEP = 2;
+-
+-    /** Plafond de sécurité : $soonWeeks / $pastWeeks sont modifiables côté client. */
+-    private const MAX_WEEKS = 14;
+-
+-    /** Onglet affiché ; reflété dans l'URL (?vue=sortis) pour pouvoir le partager ou le retrouver. */
+-    #[Url(as: 'vue')]
+-    public string $tab = 'affiche';
+-
+     /**
+-     * « Cette semaine » s'affiche d'abord seule ; « Bientôt au cinéma » se charge juste après
+-     * (wire:init), pour que la page apparaisse sans attendre les semaines suivantes.
++     * Semaine affichée dans l'explorateur : date (Y-m-d) du mercredi qui l'ouvre. Reflétée dans
++     * l'URL (?semaine=2026-09-23) pour pouvoir la partager ou la retrouver.
+      */
+-    public bool $soonReady = false;
+-
+-    public int $soonWeeks = self::INITIAL_WEEKS;
++    #[Url(as: 'semaine')]
++    public string $week = '';
+ 
+-    public int $pastWeeks = self::INITIAL_WEEKS;
++    /**
++     * « Cette semaine » s'affiche d'abord seule ; l'explorateur se charge juste après (wire:init),
++     * pour que la page apparaisse sans attendre une seconde requête TMDB.
++     */
++    public bool $browserReady = false;
+ 
+-    public function setTab(string $tab): void
++    public function loadBrowser(): void
+     {
+-        abort_unless(in_array($tab, self::TABS, true), 422);
++        $this->browserReady = true;
++    }
+ 
+-        $this->tab = $tab;
++    public function previousWeek(): void
++    {
++        $this->shiftWeek(-1);
+     }
+ 
+-    public function loadSoon(): void
++    public function nextWeek(): void
+     {
+-        $this->soonReady = true;
++        $this->shiftWeek(1);
+     }
+ 
+-    public function showMoreSoon(): void
++    /**
++     * Déclenché par le sélecteur « Aller à ». $week est une propriété publique, donc modifiable
++     * côté client : resolveWeek() écarte toute valeur hors de la plage navigable.
++     */
++    public function updatedWeek(): void
+     {
+-        $this->soonWeeks = min($this->soonWeeks + self::WEEKS_STEP, self::MAX_WEEKS);
++        $this->week = $this->resolveWeek()->toDateString();
+     }
+ 
+-    public function showMorePast(): void
++    /** Décale d'une semaine dans la liste navigable (qui saute la semaine en cours). */
++    private function shiftWeek(int $delta): void
+     {
+-        $this->pastWeeks = min($this->pastWeeks + self::WEEKS_STEP, self::MAX_WEEKS);
++        $weeks = array_keys($this->navigableWeeks());
++        $index = array_search($this->resolveWeek()->toDateString(), $weeks, true);
++
++        if ($index === false || ! isset($weeks[$index + $delta])) {
++            return;
++        }
++
++        $this->week = $weeks[$index + $delta];
+     }
+ 
+     public function with(): array
+     {
+         $tmdb = app(TmdbClient::class);
+ 
+-        // $tab est une propriété publique (donc forgeable côté client, ou via ?vue=…) : toute
+-        // valeur inconnue retombe sur la vue par défaut.
+-        $tab = in_array($this->tab, self::TABS, true) ? $this->tab : 'affiche';
+-
+-        $today = now()->startOfDay();
+-
+-        // « Semaine cinéma » : les sorties françaises tombent le mercredi, la semaine en cours va
+-        // donc du mercredi au mardi suivant (et non du lundi au dimanche).
+-        $weekStart = $today->copy()->startOfWeek(Carbon::WEDNESDAY);
+-        $weekEnd = $weekStart->copy()->addDays(6);
+-        $horizon = $today->copy()->addMonthsNoOverflow(self::RANGE_MONTHS);
+-        $lookback = $today->copy()->subMonthsNoOverflow(self::RANGE_MONTHS);
+-
+-        $week = $soon = $past = null;
+-        $soonRange = $pastRange = $soonMore = $pastMore = null;
+-        $visible = [];
+-
+-        if ($tab === 'affiche') {
+-            $week = $this->loadWindows($tmdb, [[$weekStart, $weekEnd]]);
+-            $visible = $week['movies'];
+-
+-            if ($this->soonReady) {
+-                $windows = $this->forwardWindows($weekEnd->copy()->addDay(), $horizon);
+-                $loaded = $this->clampWeeks($this->soonWeeks, count($windows));
+-                $shown = array_slice($windows, 0, $loaded);
+-
+-                // Un film peut avoir deux dates de sortie françaises (limitée puis large) : celle de
+-                // la semaine en cours l'emporte, il n'est pas répété dans « Bientôt ».
+-                $soon = $this->loadWindows($tmdb, $shown, false, collect($week['movies'])->pluck('tmdb_id')->all());
+-                $soonRange = $shown ? $this->rangeLabel($shown[0][0], end($shown)[1]) : null;
+-                $soonMore = $this->moreLabel($windows, $loaded, $soon['error'], past: false);
+-                $visible = [...$visible, ...$soon['movies']];
+-            }
+-        } else {
+-            $windows = $this->backwardWindows($lookback, $weekStart->copy()->subDay());
+-            $loaded = $this->clampWeeks($this->pastWeeks, count($windows));
+-            $shown = array_slice($windows, 0, $loaded);
+-
+-            $past = $this->loadWindows($tmdb, $shown, true);
+-            $pastRange = $shown ? $this->rangeLabel(end($shown)[0], $shown[0][1]) : null;
+-            $pastMore = $this->moreLabel($windows, $loaded, $past['error'], past: true);
+-            $visible = $past['movies'];
++        [$weekStart, $weekEnd] = $this->currentWeek();
++
++        // La semaine en cours est toujours chargée : c'est le bloc fixe du haut.
++        $current = $this->loadWeek($tmdb, $weekStart, $weekEnd);
++        $visible = $current['movies'];
++
++        $weeks = $this->navigableWeeks();
++        $selected = $this->resolveWeek();
++        $browsed = null;
++
++        // Valeur absente (premier affichage) ou hors plage : on réaligne la propriété sur la
++        // semaine réellement montrée, pour que le sélecteur et l'URL restent cohérents.
++        $this->week = $selected->toDateString();
++
++        if ($this->browserReady) {
++            // Les semaines des extrémités sont tronquées à la limite des 3 mois, pour ne jamais
++            // afficher une sortie en dehors de la plage annoncée.
++            $browsed = $this->loadWeek(
++                $tmdb,
++                $selected->copy()->max($this->lookback()),
++                $selected->copy()->addDays(6)->min($this->horizon()),
++            );
++
++            $visible = [...$visible, ...$browsed['movies']];
+         }
+ 
+         // $results = films actuellement affichés : c'est la source de repli du trait
+         // InteractsWithMovies (détails, ajout) quand TMDB ne répond pas à un appel individuel. On
+-        // n'y garde que l'essentiel de la partie visible, pour ne pas alourdir chaque aller-retour
+-        // Livewire (cette propriété est renvoyée au navigateur à chaque fois).
++        // n'y garde que l'essentiel, pour ne pas alourdir chaque aller-retour Livewire (cette
++        // propriété est renvoyée au navigateur à chaque fois).
+         $keep = array_flip(['tmdb_id', 'title', 'year', 'release_date', 'poster_url']);
+         $this->results = array_map(fn ($movie) => array_intersect_key($movie, $keep), $visible);
+ 
+@@ -134,118 +119,138 @@
+         $inList = WatchlistItem::whereIn('tmdb_id', collect($visible)->pluck('tmdb_id'))
+             ->pluck('status', 'tmdb_id');
+ 
++        $keys = array_keys($weeks);
++        $index = array_search($selected->toDateString(), $keys, true);
++
++        // La navigation ne contient jamais la semaine en cours : toute semaine sélectionnée est
++        // soit avant $weekStart, soit après $weekEnd. Le titre de section reflète laquelle.
++        $isFuture = $selected->gt($weekEnd);
++
+         return [
+-            'currentTab' => $tab,
+-            'week' => $week,
+-            'soon' => $soon,
+-            'past' => $past,
+-            'inList' => $inList,
++            'week' => $current,
+             'weekRange' => $this->rangeLabel($weekStart, $weekEnd),
+-            'soonRange' => $soonRange,
+-            'pastRange' => $pastRange,
+-            'soonMore' => $soonMore,
+-            'pastMore' => $pastMore,
++            'browsed' => $browsed,
++            'browsedLabel' => $isFuture ? 'Prochainement au cinéma' : 'Sorties passées',
++            'browsedTitle' => $this->weekTitle($selected),
++            'browsedRange' => $this->rangeLabel($selected, $selected->copy()->addDays(6)),
++            'weekOptions' => $this->weekOptions($weeks, $weekStart),
++            'canGoPrevious' => $index !== false && isset($keys[$index - 1]),
++            'canGoNext' => $index !== false && isset($keys[$index + 1]),
++            'inList' => $inList,
+         ];
+     }
+ 
++    /** Début et fin de la semaine cinéma en cours : les sorties françaises tombent le mercredi. */
++    private function currentWeek(): array
++    {
++        $start = now()->startOfDay()->startOfWeek(Carbon::WEDNESDAY);
++
++        return [$start, $start->copy()->addDays(6)];
++    }
++
++    private function horizon(): Carbon
++    {
++        return now()->startOfDay()->addMonthsNoOverflow(self::RANGE_MONTHS);
++    }
++
++    private function lookback(): Carbon
++    {
++        return now()->startOfDay()->subMonthsNoOverflow(self::RANGE_MONTHS);
++    }
++
+     /**
+-     * Charge les fenêtres données (chacune est une requête TMDB mise en cache séparément) et les
+-     * concatène dans l'ordre reçu, sans doublon. S'arrête à la première erreur : si TMDB est
+-     * indisponible, inutile d'attendre le délai d'expiration de chaque fenêtre suivante.
++     * Toutes les semaines atteignables par l'explorateur, de la plus ancienne à la plus récente,
++     * indexées par date de début (Y-m-d). La semaine en cours est volontairement absente : elle
++     * est déjà affichée en haut de la page, et la navigation la saute.
+      *
+-     * @param  array<int, array{0: Carbon, 1: Carbon}>  $windows
+-     * @param  array<int, string>  $excludeIds  Films à écarter (déjà affichés dans une autre section).
+-     * @return array{movies: array<int, array<string, mixed>>, total: int, error: ?string}
++     * @return array<string, Carbon>
+      */
+-    private function loadWindows(TmdbClient $tmdb, array $windows, bool $newestFirst = false, array $excludeIds = []): array
++    private function navigableWeeks(): array
+     {
+-        $seen = array_flip($excludeIds);
+-        $movies = [];
+-        $error = null;
++        [$current] = $this->currentWeek();
++        $lookback = $this->lookback();
++        $horizon = $this->horizon();
+ 
+-        foreach ($windows as [$from, $to]) {
+-            $response = $tmdb->releasesBetween($from, $to, $newestFirst);
++        $weeks = [];
+ 
+-            if ($response['error']) {
+-                $error = $response['error'];
+-                break;
+-            }
++        // En arrière : la semaine compte tant qu'elle se termine après la limite des 3 mois.
++        for ($start = $current->copy()->subDays(7); $start->copy()->addDays(6)->gte($lookback); $start->subDays(7)) {
++            $weeks[] = $start->copy();
++        }
+ 
+-            foreach ($response['results'] as $movie) {
+-                if (isset($seen[$movie['tmdb_id']])) {
+-                    continue;
+-                }
++        $weeks = array_reverse($weeks);
+ 
+-                $seen[$movie['tmdb_id']] = true;
+-                $movies[] = $movie;
+-            }
++        // En avant : la semaine compte tant qu'elle commence avant la limite des 3 mois.
++        for ($start = $current->copy()->addDays(7); $start->lte($horizon); $start->addDays(7)) {
++            $weeks[] = $start->copy();
+         }
+ 
+-        return ['movies' => $movies, 'total' => count($movies), 'error' => $error];
++        return collect($weeks)->keyBy(fn (Carbon $start) => $start->toDateString())->all();
+     }
+ 
+     /**
+-     * Découpe [$from, $to] en semaines de 7 jours à partir de $from, de la plus proche à la plus
+-     * lointaine ; la dernière est tronquée à $to.
+-     *
+-     * @return array<int, array{0: Carbon, 1: Carbon}>
++     * Semaine réellement affichée dans l'explorateur : celle demandée si elle est navigable,
++     * sinon la semaine suivante (valeur par défaut, et repli pour une valeur absente, mal formée,
++     * hors plage — ou égale à la semaine en cours, qui n'appartient qu'au bloc du haut).
+      */
+-    private function forwardWindows(Carbon $from, Carbon $to): array
++    private function resolveWeek(): Carbon
+     {
+-        $windows = [];
++        $weeks = $this->navigableWeeks();
+ 
+-        for ($start = $from->copy(); $start->lte($to); $start->addDays(7)) {
+-            $end = $start->copy()->addDays(6);
+-
+-            $windows[] = [$start->copy(), $end->gt($to) ? $to->copy() : $end];
++        if (isset($weeks[$this->week])) {
++            return $weeks[$this->week]->copy();
+         }
+ 
+-        return $windows;
++        [$current] = $this->currentWeek();
++        $next = $current->copy()->addDays(7)->toDateString();
++
++        return ($weeks[$next] ?? reset($weeks))->copy();
+     }
+ 
+     /**
+-     * Même découpage en remontant le temps depuis $to : la première fenêtre est la semaine juste
+-     * avant $to, la dernière est tronquée à $from.
++     * Options du sélecteur « Aller à », séparées en semaines passées et à venir.
+      *
+-     * @return array<int, array{0: Carbon, 1: Carbon}>
++     * @param  array<string, Carbon>  $weeks
++     * @return array<string, array<int, array{value: string, label: string}>>
+      */
+-    private function backwardWindows(Carbon $from, Carbon $to): array
++    private function weekOptions(array $weeks, Carbon $current): array
+     {
+-        $windows = [];
++        $options = ['Semaines passées' => [], 'Prochaines semaines' => []];
+ 
+-        for ($end = $to->copy(); $end->gte($from); $end->subDays(7)) {
+-            $start = $end->copy()->subDays(6);
++        foreach ($weeks as $value => $start) {
++            $group = $start->lt($current) ? 'Semaines passées' : 'Prochaines semaines';
+ 
+-            $windows[] = [$start->lt($from) ? $from->copy() : $start, $end->copy()];
++            $options[$group][] = [
++                'value' => $value,
++                'label' => ucfirst($this->rangeLabel($start, $start->copy()->addDays(6))),
++            ];
+         }
+ 
+-        return $windows;
+-    }
+-
+-    /** Nombre de semaines réellement chargées : au moins le minimum, au plus ce qui existe. */
+-    private function clampWeeks(int $requested, int $available): int
+-    {
+-        return min(max($requested, self::INITIAL_WEEKS), $available, self::MAX_WEEKS);
++        return array_filter($options);
+     }
+ 
+     /**
+-     * Libellé du bouton « Voir plus », ou null quand il n'y a plus rien à charger (ou en cas
+-     * d'erreur, pour ne pas relancer une requête vouée à échouer).
++     * Charge une semaine (une requête TMDB, mise en cache séparément).
+      *
+-     * @param  array<int, array{0: Carbon, 1: Carbon}>  $windows  Toutes les fenêtres de la plage.
++     * @return array{movies: array<int, array<string, mixed>>, total: int, error: ?string}
+      */
+-    private function moreLabel(array $windows, int $loaded, ?string $error, bool $past): ?string
++    private function loadWeek(TmdbClient $tmdb, Carbon $from, Carbon $to): array
+     {
+-        $remaining = count($windows) - $loaded;
++        $response = $tmdb->releasesBetween($from, $to);
+ 
+-        if ($error || $remaining <= 0) {
+-            return null;
+-        }
++        return [
++            'movies' => $response['error'] ? [] : $response['results'],
++            'total' => $response['error'] ? 0 : count($response['results']),
++            'error' => $response['error'],
++        ];
++    }
+ 
+-        $next = min(self::WEEKS_STEP, $remaining);
+-        $limit = $windows[$loaded + $next - 1][$past ? 0 : 1]->copy()->locale('fr')->translatedFormat('j F');
++    /** « Semaine du 24 septembre » (avec l'année si elle diffère de l'année en cours). */
++    private function weekTitle(Carbon $start): string
++    {
++        $start = $start->copy()->locale('fr');
+ 
+-        return sprintf('Voir %d semaine%s de plus (%s %s)', $next, $next > 1 ? 's' : '', $past ? 'dès le' : "jusqu'au", $limit);
++        return 'Semaine du ' . $start->translatedFormat($start->year === now()->year ? 'j F' : 'j F Y');
+     }
+ 
+     /**
+--- a/resources/views/livewire/upcoming/index.blade.php
++++ b/resources/views/livewire/upcoming/index.blade.php
+@@ -5,72 +5,113 @@
+         <div class="border-b border-zinc-800 pb-5">
+             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Sorties cinéma</p>
+             <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Les films à l'affiche</h1>
+-            <p class="mt-2 text-sm text-zinc-500 max-w-lg">Sorties salles françaises : la semaine en cours et les 3 prochains mois, ou ce qui est sorti ces 3 derniers mois. Ajoutez directement à votre liste les films que vous ne voulez pas manquer.</p>
++            <p class="mt-2 text-sm text-zinc-500 max-w-lg">Sorties salles françaises, semaine par semaine : la semaine en cours, puis les 3 mois passés et les 3 mois à venir. Ajoutez directement à votre liste les films que vous ne voulez pas manquer.</p>
+         </div>
+ 
+         @include('livewire.partials.notice')
+ 
+-        <!-- Onglets : à l'affiche & à venir / déjà sortis -->
+-        <div class="mt-6 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Période des sorties">
+-            <button type="button" role="tab" aria-selected="{{ $currentTab === 'affiche' ? 'true' : 'false' }}" wire:click="setTab('affiche')" @class(['rounded-xl px-3.5 py-1.5 text-xs font-bold transition', 'bg-amber-500 text-zinc-950 shadow-lg shadow-amber-950/40' => $currentTab === 'affiche', 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60' => $currentTab !== 'affiche'])>
+-                À l'affiche & à venir
+-            </button>
+-            <button type="button" role="tab" aria-selected="{{ $currentTab === 'sortis' ? 'true' : 'false' }}" wire:click="setTab('sortis')" @class(['rounded-xl px-3.5 py-1.5 text-xs font-bold transition', 'bg-amber-500 text-zinc-950 shadow-lg shadow-amber-950/40' => $currentTab === 'sortis', 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60' => $currentTab !== 'sortis'])>
+-                Déjà sortis
+-                <span class="ml-1 opacity-70">3 derniers mois</span>
+-            </button>
+-            <svg wire:loading wire:target="setTab" class="ml-1 h-4 w-4 shrink-0 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+-                <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+-            </svg>
+-        </div>
++        <!-- Bloc fixe : la semaine cinéma en cours (du mercredi au mardi) -->
++        <section class="mt-8">
++            @include('livewire.upcoming.partials.section', [
++                'title' => 'Cette semaine',
++                'range' => $weekRange,
++                'section' => $week,
++                'inList' => $inList,
++                'keyPrefix' => 'week',
++                'showStatus' => true,
++                'empty' => 'Aucune sortie répertoriée cette semaine.',
++            ])
++        </section>
+ 
+-        @if($currentTab === 'affiche')
+-        @include('livewire.upcoming.partials.section', [
+-            'title' => 'Cette semaine',
+-            'range' => $weekRange,
+-            'section' => $week,
+-            'inList' => $inList,
+-            'keyPrefix' => 'week',
+-            'showStatus' => true,
+-            'empty' => 'Aucune sortie répertoriée cette semaine.',
+-        ])
+-
+-        @if($soon === null)
+-        {{-- « Cette semaine » est déjà affichée : les semaines suivantes se chargent juste après, sans bloquer la page. --}}
+-        <section class="mt-10" wire:init="loadSoon">
++        <!-- Explorateur : une autre semaine à la fois, de -3 à +3 mois -->
++        @if(! $browsed)
++        {{-- « Cette semaine » est déjà affichée : l'explorateur se charge juste après, sans bloquer la page. --}}
++        <section class="mt-12" wire:init="loadBrowser">
+             <div class="mb-5 flex items-end justify-between border-b border-zinc-800 pb-3">
+-                <h2 class="text-xl font-bold tracking-tight text-zinc-100">Bientôt au cinéma</h2>
++                <h2 class="text-xl font-bold tracking-tight text-zinc-100">{{ $browsedLabel }}</h2>
+             </div>
+             <p class="flex items-center gap-2 text-sm text-zinc-500">
+                 <svg class="h-4 w-4 shrink-0 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                     <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+                 </svg>
+-                Chargement des prochaines sorties…
++                Chargement des autres semaines…
+             </p>
+         </section>
+         @else
+-        @include('livewire.upcoming.partials.section', [
+-            'title' => 'Bientôt au cinéma',
+-            'range' => $soonRange,
+-            'section' => $soon,
+-            'inList' => $inList,
+-            'keyPrefix' => 'soon',
+-            'moreAction' => 'showMoreSoon',
+-            'moreLabel' => $soonMore,
+-            'empty' => "Aucune sortie répertoriée sur cette période.",
+-        ])
+-        @endif
+-        @else
+-        @include('livewire.upcoming.partials.section', [
+-            'title' => 'Déjà sortis',
+-            'range' => $pastRange,
+-            'section' => $past,
+-            'inList' => $inList,
+-            'keyPrefix' => 'past',
+-            'moreAction' => 'showMorePast',
+-            'moreLabel' => $pastMore,
+-            'empty' => 'Aucune sortie répertoriée sur cette période.',
+-        ])
++        <section class="mt-12">
++            <div class="mb-5 flex items-end justify-between border-b border-zinc-800 pb-3">
++                <h2 class="text-xl font-bold tracking-tight text-zinc-100">{{ $browsedLabel }}</h2>
++                <p class="text-xs font-semibold text-zinc-500">3 mois en arrière, 3 mois en avant</p>
++            </div>
++
++            <!-- Navigation : semaine précédente / suivante + saut direct -->
++            <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 px-4 py-3.5">
++                <div class="flex items-center gap-2">
++                    <button
++                        type="button"
++                        wire:click="previousWeek"
++                        @disabled(! $canGoPrevious)
++                        wire:loading.attr="disabled"
++                        wire:target="previousWeek,nextWeek,week"
++                        class="grid h-9 w-9 place-items-center rounded-xl border border-zinc-700 text-zinc-300 transition hover:border-amber-500/50 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-30"
++                        aria-label="Semaine précédente"
++                    >
++                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
++                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
++                        </svg>
++                    </button>
++
++                    <p class="min-w-[11rem] text-center text-sm font-bold text-zinc-100">
++                        {{ $browsedRange }}
++                        <svg wire:loading wire:target="previousWeek,nextWeek,week" class="mx-auto mt-1 h-3.5 w-3.5 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
++                            <path d="M21 12a9 9 0 1 1-6.22-8.56" />
++                        </svg>
++                    </p>
++
++                    <button
++                        type="button"
++                        wire:click="nextWeek"
++                        @disabled(! $canGoNext)
++                        wire:loading.attr="disabled"
++                        wire:target="previousWeek,nextWeek,week"
++                        class="grid h-9 w-9 place-items-center rounded-xl border border-zinc-700 text-zinc-300 transition hover:border-amber-500/50 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-30"
++                        aria-label="Semaine suivante"
++                    >
++                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
++                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
++                        </svg>
++                    </button>
++                </div>
++
++                <div class="flex items-center gap-2">
++                    <label for="semaine" class="text-xs font-bold uppercase tracking-wide text-zinc-500">Aller à</label>
++                    <select
++                        wire:model.live="week"
++                        id="semaine"
++                        class="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
++                    >
++                        @foreach($weekOptions as $group => $options)
++                        <optgroup label="{{ $group }}">
++                            @foreach($options as $option)
++                            <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
++                            @endforeach
++                        </optgroup>
++                        @endforeach
++                    </select>
++                </div>
++            </div>
++
++            <div class="mt-8">
++                @include('livewire.upcoming.partials.section', [
++                    'title' => $browsedTitle,
++                    'section' => $browsed,
++                    'inList' => $inList,
++                    'keyPrefix' => 'browsed',
++                    'loadingTarget' => 'previousWeek,nextWeek,week',
++                    'empty' => 'Aucune sortie répertoriée sur cette semaine.',
++                ])
++            </div>
++        </section>
+         @endif
+ 
+         @include('livewire.partials.movie-modal')
+--- a/resources/views/livewire/upcoming/partials/section.blade.php
++++ b/resources/views/livewire/upcoming/partials/section.blade.php
+@@ -1,11 +1,10 @@
+ {{--
+-    Une section de la page « À venir » : en-tête (titre, compteur, période), grille de cartes et
+-    bouton « Voir plus ».
+-    Variables : $title, $range, $section (résultat de Index::loadWindows()), $inList, $keyPrefix, $empty,
+-    et facultatifs $showStatus, $moreAction (méthode Livewire appelée par « Voir plus ») et $moreLabel
+-    (texte du bouton ; null s'il n'y a plus rien à charger).
++    Une section de la page « À venir » : en-tête (titre, compteur, période) et grille de cartes.
++    Variables : $title, $section (résultat de Index::loadWeek()), $inList, $keyPrefix, $empty, et
++    facultatifs $range, $showStatus (badges « Aujourd'hui » / « En salles ») et $loadingTarget
++    (actions Livewire pendant lesquelles la section est grisée).
+ --}}
+-<section class="mt-10" wire:loading.class="opacity-40" wire:target="setTab">
++<div @if(filled($loadingTarget ?? null)) wire:loading.class="opacity-40" wire:target="{{ $loadingTarget }}" @endif>
+     <div class="mb-5 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-zinc-800 pb-3">
+         <h2 class="flex items-center gap-3 text-xl font-bold tracking-tight text-zinc-100">
+             {{ $title }}
+@@ -38,16 +37,4 @@
+     <p class="mt-4 text-xs text-amber-300/80">Certaines sorties n'ont pas pu être chargées ({{ $section['error'] }}).</p>
+     @endif
+     @endif
+-
+-    {{-- Affiché même quand les semaines déjà chargées sont vides : les suivantes peuvent ne pas l'être. --}}
+-    @if(filled($moreAction ?? null) && filled($moreLabel ?? null))
+-    <div class="mt-6 flex justify-center">
+-        <button type="button" wire:click="{{ $moreAction }}" wire:loading.attr="disabled" wire:target="{{ $moreAction }}" class="inline-flex items-center gap-2 rounded-xl border border-zinc-700 px-5 py-2 text-xs font-bold text-zinc-300 transition hover:border-amber-500/50 hover:text-amber-400 disabled:cursor-wait disabled:opacity-60">
+-            <svg wire:loading wire:target="{{ $moreAction }}" class="h-3.5 w-3.5 animate-spin text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+-                <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+-            </svg>
+-            {{ $moreLabel }}
+-        </button>
+-    </div>
+-    @endif
+-</section>
++</div>

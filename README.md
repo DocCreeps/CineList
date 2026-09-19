@@ -70,8 +70,13 @@
 - Les films marqués **déjà vus** sont retirés des grilles principales et regroupés dans une section repliable "Déjà vus" (masquée par défaut) ; ils réapparaissent dans la grille normale si on les sélectionne explicitement via le filtre de statut.
 
 ### 🎬 Sorties cinéma (`/a-venir`)
-- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), un mois à la fois, regroupées par semaine.
-- Navigation mois par mois via les flèches précédent/suivant, ou saut direct à n'importe quel mois des 11 prochains via le sélecteur calendrier.
+- Sorties en salle en France (types de sortie « limitée » et « large » TMDB), présentées **semaine par semaine** — la semaine cinéma va du mercredi au mardi, jour de sortie des films en France :
+  - **Cette semaine** : bloc fixe en haut de page, toujours la semaine en cours ;
+  - **Les autres semaines** : en dessous, une seule semaine à la fois, de **3 mois en arrière à 3 mois en avant**. Flèches précédent/suivant et sélecteur « Aller à » (semaines passées / prochaines semaines) ; la semaine affichée est reflétée dans l'URL (`?semaine=2026-09-23`) pour pouvoir être partagée. La semaine en cours est absente de cette navigation, puisqu'elle est déjà affichée au-dessus. Les semaines des extrémités sont tronquées à la limite des 3 mois.
+- Dans une même journée de sortie, les films les plus populaires passent en premier.
+- Chaque semaine est **une requête TMDB courte**, mise en cache séparément : « Cette semaine » s'affiche d'abord, l'explorateur se charge juste après (sans bloquer la page), et revenir sur une semaine déjà consultée est immédiat. Récupérer 3 mois d'un coup représenterait plusieurs centaines d'appels à froid.
+- Un film déjà présent dans la liste personnelle est affiché en grisé, avec son statut actuel à la place des boutons d'ajout (comme sur la recherche).
+- Boutons d'ajout selon la date : **+ Cinéma** (et **Déjà vue** pour un film déjà à l'affiche, enregistré comme vu au cinéma) ; au-delà de ~2 mois après la sortie, comme sur la recherche : **Déjà vue** / **+ Streaming** / **Revoir**. Une ressortie d'un film ancien propose aussi **+ Streaming**.
 - Pour chaque film candidat, la date de sortie française réelle est vérifiée individuellement (voir [Détails techniques](#détails-techniques)) : un film déjà sorti ailleurs dans le monde mais faisant l'objet d'une ressortie/reprise en salle en France n'apparaît qu'avec sa date de ressortie française, jamais avec sa date de sortie d'origine.
 
 ### 📊 Mon année ciné (`/statistiques`)
@@ -353,7 +358,7 @@ Les deux sont affichés dans le footer de toutes les pages, factorisé dans `res
 | `/` | `home` | Page d'accueil |
 | `/recherche` | `search.index` | Recherche TMDB et ajout à la liste |
 | `/tableau-de-bord` | `watchlist.dashboard` | Liste personnelle |
-| `/a-venir` | `upcoming.index` | Sorties cinéma à venir |
+| `/a-venir` | `upcoming.index` | Sorties cinéma : semaine en cours, puis navigation semaine par semaine sur ±3 mois |
 | `/statistiques` | `stats.index` | Bilan des films vus (« Mon année ciné ») |
 | `/connexion` | `auth.login` | Connexion |
 | `/inscription` | `auth.register` | Création de compte (code d'invitation requis) |
@@ -410,8 +415,8 @@ la table `invite_code_redemptions` (`invite_code_id`, `user_id`, horodatage).
 - **Double niveau de cache pour la recherche** :
   - un cache par recherche (requête + mode + année minimale), 6 heures ;
   - un cache par film (réalisateur/casting/studio), 7 jours, partagé entre toutes les recherches — un film déjà rencontré dans une recherche précédente n'est jamais re-téléchargé.
-- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates pour l'accueil, par mois pour la page « À venir ») ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
-- **Fiabilité des sorties « France »** : `discover/movie` filtre bien côté serveur par date de sortie régionale (`region=FR` + `release_date.gte/lte` + `with_release_type`), mais le champ `release_date` qu'il renvoie sur chaque résultat n'est pas cette date régionale — il peut s'agir de la toute première sortie du film n'importe où dans le monde, parfois des années plus tôt (cas typique : une ressortie/reprise en salle française d'un film déjà ancien). Pour éviter d'afficher cette date trompeuse, chaque film candidat fait l'objet d'un appel individuel à `movie/{id}/release_dates` (en pool, comme l'enrichissement de la recherche) : seule sa date de sortie France de type sortie limitée/large réellement comprise dans la période demandée est conservée, tout film sans une telle date étant écarté des résultats.
+- **Autres caches TMDB** : sorties à venir, 12 heures (par plage de dates : deux mois pour l'accueil, une semaine cinéma par entrée pour la page « À venir », si bien que chaque semaine parcourue n'est téléchargée qu'une fois) ; dates de sortie françaises de chaque film candidat, 12 heures, par film ; fiche complète d'un film (`find()`, utilisée par la modale et l'ajout à la liste), 1 jour ; films similaires et fournisseurs de streaming (« Où regarder »), 3 jours ; saga/collection, 3 jours.
+- **Fiabilité des sorties « France »** : `discover/movie` filtre bien côté serveur par date de sortie régionale (`region=FR` + `release_date.gte/lte` + `with_release_type`), mais le champ `release_date` qu'il renvoie sur chaque résultat n'est pas cette date régionale — il peut s'agir de la toute première sortie du film n'importe où dans le monde, parfois des années plus tôt (cas typique : une ressortie/reprise en salle française d'un film déjà ancien). Pour éviter d'afficher cette date trompeuse, chaque film candidat fait l'objet d'un appel individuel à `movie/{id}/release_dates` (en pool, comme l'enrichissement de la recherche) : seule sa date de sortie France de type sortie limitée/large réellement comprise dans la période demandée est conservée, tout film sans une telle date étant écarté des résultats. Ces appels sont envoyés par lots de 30 (pour rester sous la limite de débit de TMDB) et leur résultat est mis en cache par film, si bien que les plages voisines, ou le lendemain, ne les refont pas.
 - **Pagination studio parallélisée** : la première page détermine le nombre total de pages, les pages suivantes sont récupérées en une seule vague via `Http::pool` plutôt qu'en séquence.
 - **Bande-annonce** : récupérée via `append_to_response=credits,videos` sur l'endpoint `movie/{id}`, avec repli sur un second appel non filtré par langue si aucune vidéo française n'existe.
 - **Films similaires & sagas** : les recommandations TMDB (`movie/{id}/recommendations`, 6 films max) alimentent le bloc « Films similaires » ; l'ajout d'une saga entière (`collection/{id}`) ignore les films déjà présents dans la liste.
