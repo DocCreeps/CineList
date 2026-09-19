@@ -2,17 +2,19 @@
 
 namespace App\Livewire\Settings;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class Sessions extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $password = '';
     public bool $confirmingLogout = false;
 
@@ -49,11 +51,8 @@ class Sessions extends Component
 
         $throttleKey = 'logout-other-devices:'.Auth::id();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'password' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
-            ]);
+        if ($this->isThrottled($throttleKey, 5)) {
+            return;
         }
 
         if (! Hash::check($this->password, Auth::user()->password)) {

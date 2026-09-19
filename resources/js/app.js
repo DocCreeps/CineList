@@ -37,4 +37,72 @@ document.addEventListener('alpine:init', () => {
             this._callback = null;
         },
     });
+
+    /**
+     * Compte à rebours automatique après un "Trop de tentatives".
+     *
+     * A poser sur le <form> concerné : x-data="throttleCountdown". Le composant Livewire envoie
+     * l'événement "throttled" ({ seconds }) via le trait ThrottlesWithCountdown ; on décompte alors
+     * en direct, sans aucune requête réseau, et on réactive le formulaire à zéro.
+     *
+     * Dans le formulaire :
+     *   - <x-throttle-notice /> affiche le message et les secondes restantes ;
+     *   - :disabled="remaining > 0" sur le bouton d'envoi le bloque pendant l'attente.
+     *
+     * L'échéance est calculée avec Date.now() (et non en décrémentant un compteur) : le décompte
+     * reste juste même si l'onglet est en arrière-plan et que le navigateur ralentit les timers.
+     */
+    Alpine.data('throttleCountdown', () => {
+        let timer = null;
+        let deadline = 0;
+        let listener = null;
+
+        return {
+            remaining: 0,
+
+            init() {
+                listener = (event) => this.start(event.detail?.seconds);
+                window.addEventListener('throttled', listener);
+            },
+
+            destroy() {
+                this.stop();
+                window.removeEventListener('throttled', listener);
+            },
+
+            /** (Re)lance le décompte ; appelé à chaque réponse "trop de tentatives" du serveur. */
+            start(seconds) {
+                this.stop();
+
+                seconds = Math.ceil(Number(seconds));
+
+                if (! (seconds > 0)) {
+                    this.remaining = 0;
+
+                    return;
+                }
+
+                deadline = Date.now() + seconds * 1000;
+                this.remaining = seconds;
+                timer = setInterval(() => this.tick(), 250);
+            },
+
+            tick() {
+                this.remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+
+                if (this.remaining === 0) {
+                    this.stop();
+                }
+            },
+
+            stop() {
+                clearInterval(timer);
+                timer = null;
+            },
+
+            get label() {
+                return `${this.remaining} seconde${this.remaining > 1 ? 's' : ''}`;
+            },
+        };
+    });
 });

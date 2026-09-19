@@ -2,12 +2,12 @@
 
 namespace App\Livewire\Settings;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserProfileInformation;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -15,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Profile extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $name = '';
     public string $email = '';
 
@@ -65,11 +67,8 @@ class Profile extends Component
 
         $throttleKey = 'delete-account:'.Auth::id();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'password' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
-            ]);
+        if ($this->isThrottled($throttleKey, 5)) {
+            return;
         }
 
         $user = Auth::user();

@@ -17,23 +17,20 @@
             <form wire:submit="update" class="mt-5 space-y-4">
                 <div>
                     <label for="current_password" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Mot de passe actuel</label>
-                    <input wire:model="current_password" id="current_password" type="password" autocomplete="current-password" required
-                        class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                    <x-password-input wire:model="current_password" id="current_password" autocomplete="current-password" required />
                     @error('current_password', 'updatePassword') <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="password" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Nouveau mot de passe</label>
-                    <input wire:model="password" id="password" type="password" autocomplete="new-password" required
-                        class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                    <x-password-input wire:model="password" id="password" autocomplete="new-password" required />
                     <x-password-strength target="password" />
                     @error('password', 'updatePassword') <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
                     <label for="password_confirmation" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Confirmer</label>
-                    <input wire:model="password_confirmation" id="password_confirmation" type="password" autocomplete="new-password" required
-                        class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                    <x-password-input wire:model="password_confirmation" id="password_confirmation" autocomplete="new-password" required />
                 </div>
 
                 <button type="submit" class="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-950/40 transition hover:bg-amber-400">

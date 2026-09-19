@@ -8,7 +8,7 @@
         @endif
     </p>
 
-    <form wire:submit="authenticate" class="mt-6 space-y-4">
+    <form wire:submit="authenticate" x-data="throttleCountdown" class="mt-6 space-y-4">
         @if ($usingRecoveryCode)
             <div>
                 <label for="recovery_code" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Code de récupération</label>
@@ -25,7 +25,9 @@
             </div>
         @endif
 
-        <button type="submit" class="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-950/40 transition hover:bg-amber-400">
+        <x-throttle-notice />
+
+        <button type="submit" :disabled="remaining > 0" class="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-950/40 transition hover:bg-amber-400 disabled:pointer-events-none disabled:opacity-50">
             Vérifier
         </button>
     </form>

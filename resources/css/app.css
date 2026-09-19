@@ -11,3 +11,7 @@
 }
 
 [x-cloak] { display: none !important; }
+
+/* Le bouton "afficher / masquer" maison (x-password-input) remplace l'œil natif d'Edge. */
+input::-ms-reveal,
+input::-ms-clear { display: none; }

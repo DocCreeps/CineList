@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.guest')]
 class Login extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $email = '';
     public string $password = '';
     public bool $remember = false;
@@ -27,11 +30,9 @@ class Login extends Component
 
         $throttleKey = Str::lower($this->email).'|'.request()->ip();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'email' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
-            ]);
+        // Le compte à rebours s'affiche côté navigateur (voir ThrottlesWithCountdown).
+        if ($this->isThrottled($throttleKey, 5)) {
+            return;
         }
 
         $user = User::where('email', $this->email)->first();

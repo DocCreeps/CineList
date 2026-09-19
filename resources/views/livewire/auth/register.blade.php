@@ -2,7 +2,7 @@
     <h1 class="font-display text-3xl tracking-wide text-zinc-100">CRÉER UN COMPTE</h1>
     <p class="mt-1 text-sm text-zinc-500">Sur invitation uniquement.</p>
 
-    <form wire:submit="register" class="mt-6 space-y-4">
+    <form wire:submit="register" x-data="throttleCountdown" class="mt-6 space-y-4">
         <div>
             <label for="name" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Nom</label>
             <input wire:model="name" id="name" type="text" autocomplete="name" required autofocus
@@ -19,16 +19,14 @@
 
         <div>
             <label for="password" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Mot de passe</label>
-            <input wire:model="password" id="password" type="password" autocomplete="new-password" required
-                class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
+            <x-password-input wire:model="password" id="password" autocomplete="new-password" required />
             <x-password-strength target="password" />
             @error('password') <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p> @enderror
         </div>
 
         <div>
             <label for="password_confirmation" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Confirmer le mot de passe</label>
-            <input wire:model="password_confirmation" id="password_confirmation" type="password" autocomplete="new-password" required
-                class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
+            <x-password-input wire:model="password_confirmation" id="password_confirmation" autocomplete="new-password" required />
         </div>
 
         <div>
@@ -38,7 +36,9 @@
             @error('invite_code') <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p> @enderror
         </div>
 
-        <button type="submit" class="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-950/40 transition hover:bg-amber-400">
+        <x-throttle-notice />
+
+        <button type="submit" :disabled="remaining > 0" class="w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-950/40 transition hover:bg-amber-400 disabled:pointer-events-none disabled:opacity-50">
             Créer mon compte
         </button>
     </form>

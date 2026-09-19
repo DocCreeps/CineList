@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,6 +13,8 @@ use Livewire\Component;
 #[Layout('layouts.guest')]
 class Register extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $name = '';
     public string $email = '';
     public string $password = '';
@@ -27,11 +30,7 @@ class Register extends Component
     {
         $throttleKey = 'register:'.request()->ip();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 10)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-
-            $this->addError('invite_code', "Trop de tentatives d'inscription. Réessaie dans {$seconds} secondes.");
-
+        if ($this->isThrottled($throttleKey, 10)) {
             return;
         }
 

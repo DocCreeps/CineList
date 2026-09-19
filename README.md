@@ -172,6 +172,18 @@ php artisan watchlist:assign-owner ton@email.fr
 
 - Mots de passe hashés automatiquement (cast `hashed` sur `User::password`, bcrypt).
 - Limitation des tentatives de connexion : 5 essais par couple e-mail + IP, verrouillage 60s.
+  Le même mécanisme protège la confirmation de mot de passe, la double authentification, la
+  suppression du compte et la déconnexion des autres appareils.
+- Quand une limite est atteinte, le navigateur affiche un **compte à rebours automatique**
+  (Alpine.js, sans requête réseau) et désactive le bouton d'envoi jusqu'à la fin de l'attente.
+  Le composant Livewire n'écrit plus le nombre de secondes dans une erreur figée : il appelle
+  `isThrottled()` (trait `App\Livewire\Concerns\ThrottlesWithCountdown`), qui déclenche
+  l'événement navigateur `throttled`. La limite reste appliquée côté serveur par le
+  `RateLimiter` : le décompte n'est qu'un affichage. Pour l'ajouter à un nouveau formulaire :
+  `x-data="throttleCountdown"` sur le `<form>`, `<x-throttle-notice />` dans le formulaire et
+  `:disabled="remaining > 0"` sur le bouton d'envoi.
+- Tous les champs mot de passe utilisent `<x-password-input>` (bouton afficher / masquer en
+  Alpine.js, état propre à chaque champ) au lieu d'un `<input type="password">` brut.
 - Limitation des tentatives d'inscription : 10 essais par IP et par minute (les composants
   Livewire ne passant pas par le routeur HTTP classique, cette limite est appliquée manuellement
   dans `App\Livewire\Auth\Register`, pas via un middleware de route).
@@ -209,7 +221,8 @@ app/
 │   ├── Admin/          Invitations, membres (réservé aux admins)
 │   ├── Watchlist/       Tableau de bord
 │   ├── Search/, Upcoming/, Stats/
-│   └── Concerns/        Traits partagés entre plusieurs composants (ex. InteractsWithMovies)
+│   └── Concerns/        Traits partagés entre plusieurs composants (ex. InteractsWithMovies,
+│                        ThrottlesWithCountdown)
 ├── Actions/            Logique métier, indépendante de l'UI : une classe = une opération.
 │   ├── Watchlist/      Filtrage/tri de la liste, ajout d'un film ou d'une saga, changement
 │   │                   de statut, compteurs, statistiques

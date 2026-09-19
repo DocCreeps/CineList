@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Auth;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\TwoFactorAuthenticationProvider;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -13,6 +13,8 @@ use Livewire\Component;
 #[Layout('layouts.guest')]
 class TwoFactorChallenge extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $code = '';
     public string $recovery_code = '';
     public bool $usingRecoveryCode = false;
@@ -45,11 +47,8 @@ class TwoFactorChallenge extends Component
 
         $throttleKey = 'two-factor:'.$user->getKey();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'code' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
-            ]);
+        if ($this->isThrottled($throttleKey, 5)) {
+            return;
         }
 
         if ($this->usingRecoveryCode) {

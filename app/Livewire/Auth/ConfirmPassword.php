@@ -2,16 +2,18 @@
 
 namespace App\Livewire\Auth;
 
+use App\Livewire\Concerns\ThrottlesWithCountdown;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('layouts.guest')]
 class ConfirmPassword extends Component
 {
+    use ThrottlesWithCountdown;
+
     public string $password = '';
 
     public function confirm(): void
@@ -22,11 +24,8 @@ class ConfirmPassword extends Component
         // mot de passe pour accéder aux pages sensibles (réglages, administration).
         $throttleKey = 'confirm-password:'.Auth::id();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
-            $seconds = RateLimiter::availableIn($throttleKey);
-            throw ValidationException::withMessages([
-                'password' => "Trop de tentatives. Réessayez dans {$seconds} secondes.",
-            ]);
+        if ($this->isThrottled($throttleKey, 5)) {
+            return;
         }
 
         if (! Hash::check($this->password, Auth::user()->password)) {
