@@ -58,6 +58,8 @@ class TwoFactor extends Component
         $generate(Auth::user());
 
         $this->showingRecoveryCodes = true;
+
+        $this->dispatch('toast', message: 'Nouveaux codes de récupération générés : les anciens ne fonctionnent plus.');
     }
 
     public function disable(DisableTwoFactorAuthentication $disable): void

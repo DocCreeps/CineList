@@ -6,6 +6,7 @@ use App\Actions\Watchlist\WatchlistStatusCounts;
 use App\Livewire\Concerns\InteractsWithMovies;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
+use App\Support\Movies\ReleaseWindow;
 use Livewire\Component;
 
 class Home extends Component
@@ -16,21 +17,44 @@ class Home extends Component
     {
         $toWatch = WatchlistItem::query()->where('status', 'to_watch')->orderBy('priority')->latest()->limit(6)->get();
 
-        // Films "cinéma" encore "à voir", croisés avec les sorties à venir de TMDB
-        // (même fenêtre que la page /a-venir) pour n'afficher que ceux dont la date est confirmée.
-        $watchlistCinemaIds = WatchlistItem::query()
+        // Tous les films « cinéma » encore « à voir », avec leur date de sortie française. On
+        // interroge TMDB film par film plutôt que de croiser avec la liste des sorties des 2
+        // prochains mois : un film plus lointain (ou déjà à l'affiche) n'y figurait pas, et la liste
+        // était en plus tronquée à 4 entrées.
+        $cinemaItems = WatchlistItem::query()
             ->where('source', 'cinema')
             ->where('status', 'to_watch')
-            ->pluck('tmdb_id');
+            ->get(['tmdb_id', 'title', 'poster_url']);
 
-        $upcomingInWatchlist = collect();
-        if ($watchlistCinemaIds->isNotEmpty()) {
-            $upcoming = $tmdb->upcomingFilms();
-            $upcomingInWatchlist = collect($upcoming['results'])
-                ->whereIn('tmdb_id', $watchlistCinemaIds->all())
-                ->take(4)
-                ->values();
-        }
+        $releases = $cinemaItems->isEmpty()
+            ? []
+            : $tmdb->cinemaReleaseDates($cinemaItems->pluck('tmdb_id')->all());
+
+        $today = now()->toDateString();
+
+        $upcomingInWatchlist = $cinemaItems
+            ->map(function (WatchlistItem $item) use ($releases, $today) {
+                $release = $releases[$item->tmdb_id] ?? ['release_date' => null, 'confirmed' => false];
+                $date = $release['release_date'];
+
+                // Sorti depuis longtemps : ni « prochainement », ni encore à l'affiche.
+                if ($date && ReleaseWindow::classify($date) === 'old') {
+                    return null;
+                }
+
+                return [
+                    'tmdb_id' => $item->tmdb_id,
+                    'title' => $item->title,
+                    'poster_url' => $item->poster_url,
+                    'release_date' => $date,
+                    'confirmed' => $release['confirmed'],
+                    'is_out' => $release['confirmed'] && $date !== null && $date <= $today,
+                ];
+            })
+            ->filter()
+            // Déjà à l'affiche d'abord, puis par date croissante ; sans date connue en dernier.
+            ->sortBy(fn (array $movie) => $movie['release_date'] ?? '9999-12-31')
+            ->values();
 
         return [
             'counts' => $statusCounts->handle(),

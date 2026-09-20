@@ -3,6 +3,7 @@
 namespace App\Actions\Watchlist;
 
 use App\Models\WatchlistItem;
+use App\Support\Movies\Favorites;
 
 class ComputeWatchlistStats
 {
@@ -22,7 +23,8 @@ class ComputeWatchlistStats
             ->countBy()
             ->sortDesc();
 
-        $directorCounts = $watched->pluck('director')->filter()->countBy()->sortDesc();
+        $directorCounts = Favorites::directors($watched);
+        $studioCounts = Favorites::studios($watched);
 
         $rated = $watched->whereNotNull('personal_rating');
 
@@ -43,6 +45,9 @@ class ComputeWatchlistStats
             'topGenreCount' => $genreCounts->first(),
             'topDirector' => $directorCounts->keys()->first(),
             'topDirectorCount' => $directorCounts->first(),
+            'topStudio' => $studioCounts->keys()->first(),
+            'topStudioCount' => $studioCounts->first(),
+            'favoriteFilm' => Favorites::film($watched),
             'cinemaCount' => $watched->where('source', 'cinema')->count(),
             'streamingCount' => $watched->where('source', 'streaming')->count(),
             'timeline' => $timeline,

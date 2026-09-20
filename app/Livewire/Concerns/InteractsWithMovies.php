@@ -113,6 +113,10 @@ trait InteractsWithMovies
         $newRating = $item->personal_rating === $rating ? null : $rating;
         $item->update(['personal_rating' => $newRating]);
 
+        $this->dispatch('toast', message: $newRating === null
+            ? "Note de « {$item->title} » retirée."
+            : "Note de « {$item->title} » : {$newRating}/5.");
+
         // Garde la modale ouverte synchronisée si elle affiche ce même film.
         if ($this->selectedMovie && ($this->selectedMovie['item_id'] ?? null) === $id) {
             $this->selectedMovie['personal_rating'] = $newRating;

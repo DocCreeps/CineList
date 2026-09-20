@@ -82,24 +82,50 @@ class Dashboard extends Component
     {
         abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
 
+        $done = 0;
+
         foreach ($this->selectedIds as $id) {
             $action->handle(WatchlistItem::findOrFail($id), $status);
+            $done++;
         }
 
         $this->clearSelection();
+
+        if ($done > 0) {
+            $s = $done > 1 ? 's' : '';
+
+            $this->dispatch('toast', message: match ($status) {
+                'to_watch' => "{$this->filmCount($done)} remis dans « À voir ».",
+                'watched' => "{$this->filmCount($done)} marqué{$s} comme vu{$s}.",
+                'to_rewatch' => "{$this->filmCount($done)} ajouté{$s} à « À revoir ».",
+            });
+        }
     }
 
     public function bulkSetPriority(int $priority): void
     {
         abort_unless(in_array($priority, [1, 2, 3], true), 422);
-        WatchlistItem::whereIn('id', $this->selectedIds)->update(['priority' => $priority]);
+
+        // Compté avant la mise à jour : selon le moteur SQL, update() ne renvoie parfois que les
+        // lignes réellement modifiées, pas celles concernées.
+        $query = WatchlistItem::whereIn('id', $this->selectedIds);
+        $updated = $query->count();
+        $query->update(['priority' => $priority]);
         $this->clearSelection();
+
+        if ($updated > 0) {
+            $this->dispatch('toast', message: "Priorité « {$this->priorityLabel($priority)} » appliquée à {$this->filmCount($updated)}.");
+        }
     }
 
     public function bulkRemove(): void
     {
-        WatchlistItem::whereIn('id', $this->selectedIds)->delete();
+        $removed = WatchlistItem::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
+
+        if ($removed > 0) {
+            $this->dispatch('toast', message: "{$this->filmCount($removed)} retiré".($removed > 1 ? 's' : '').' de votre liste.');
+        }
     }
 
     public function toggleStatusFilter(string $status): void
@@ -140,18 +166,53 @@ class Dashboard extends Component
 
     public function setStatus(int $id, string $status, UpdateWatchlistItemStatus $action): void
     {
-        $action->handle(WatchlistItem::findOrFail($id), $status);
+        $item = WatchlistItem::findOrFail($id);
+        $changed = $item->status !== $status;
+
+        $action->handle($item, $status);
+
+        // Recliquer sur le statut déjà actif ne change rien : pas de notification.
+        if ($changed) {
+            $this->dispatch('toast', message: match ($status) {
+                'to_watch' => "« {$item->title} » remis dans « À voir ».",
+                'watched' => "« {$item->title} » marqué comme vu.",
+                'to_rewatch' => "« {$item->title} » ajouté à « À revoir ».",
+            });
+        }
     }
 
     public function setPriority(int $id, int $priority): void
     {
         abort_unless(in_array($priority, [1, 2, 3], true), 422);
-        WatchlistItem::findOrFail($id)->update(['priority' => $priority]);
+
+        $item = WatchlistItem::findOrFail($id);
+        $changed = (int) $item->priority !== $priority;
+
+        $item->update(['priority' => $priority]);
+
+        if ($changed) {
+            $this->dispatch('toast', message: "Priorité « {$this->priorityLabel($priority)} » pour « {$item->title} ».");
+        }
     }
 
     public function remove(int $id): void
     {
-        WatchlistItem::findOrFail($id)->delete();
+        $item = WatchlistItem::findOrFail($id);
+        $item->delete();
+
+        $this->dispatch('toast', message: "« {$item->title} » retiré de votre liste.");
+    }
+
+    /** Libellé d'une priorité, identique à celui des boutons de la carte (Haute / Moyenne / Basse). */
+    private function priorityLabel(int $priority): string
+    {
+        return [1 => 'haute', 2 => 'moyenne', 3 => 'basse'][$priority];
+    }
+
+    /** « 1 film » / « 3 films », pour les messages des actions groupées. */
+    private function filmCount(int $count): string
+    {
+        return $count.' film'.($count > 1 ? 's' : '');
     }
 
     /**

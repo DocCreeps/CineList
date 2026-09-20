@@ -5,7 +5,7 @@
 --}}
 <div
     x-data
-    class="pointer-events-none fixed inset-x-0 bottom-0 z-[200] flex flex-col items-center gap-2.5 p-4 sm:items-end sm:p-6"
+    class="pointer-events-none fixed inset-x-0 top-0 z-[200] flex flex-col items-center gap-2.5 p-4 sm:items-end sm:p-6"
     aria-live="polite"
     aria-atomic="true"
 >
@@ -13,11 +13,11 @@
         <div
             x-show="true"
             x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4"
+            x-transition:enter-start="opacity-0 -translate-y-2 sm:translate-y-0 sm:translate-x-4"
             x-transition:enter-end="opacity-100 translate-y-0 sm:translate-x-0"
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100 translate-y-0 sm:translate-x-0"
-            x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:translate-x-4"
+            x-transition:leave-end="opacity-0 -translate-y-2 sm:translate-y-0 sm:translate-x-4"
             x-on:mouseenter="$store.toast.pause(item.id)"
             x-on:mouseleave="$store.toast.resume(item.id)"
             class="pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border p-3.5 shadow-2xl backdrop-blur-sm"

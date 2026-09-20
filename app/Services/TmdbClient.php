@@ -406,6 +406,52 @@ class TmdbClient
         }
     }
 
+    /**
+     * Date de sortie en salles de films précis (typiquement ceux de la watchlist), sans passer par
+     * une fenêtre de dates : upcomingFilms() ne voit que les 2 prochains mois (et au plus 120
+     * films), si bien qu'un film annoncé pour dans 4 mois — ou déjà à l'affiche — n'y figurait pas.
+     *
+     * Pour chaque film : la prochaine sortie salle française (types 2/3) ou, à défaut, la plus
+     * récente déjà passée. Si TMDB ne connaît aucune sortie salle française, on retombe sur la
+     * date de sortie générale du film, marquée `confirmed` = false (elle peut différer de la date
+     * française). `release_date` vaut null quand TMDB n'en connaît aucune.
+     *
+     * @param  array<int, int|string>  $ids
+     * @return array<string, array{release_date: ?string, confirmed: bool}>  Indexé par id TMDB (string).
+     */
+    public function cinemaReleaseDates(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('strval', $ids)));
+
+        if ($ids === [] || blank(config('services.tmdb.token'))) {
+            return [];
+        }
+
+        // Mis en cache par film (12 h) : les rechargements de l'accueil ne rappellent pas TMDB.
+        $frenchDates = $this->frenchTheatricalDates($ids);
+        $today = now()->toDateString();
+        $results = [];
+
+        foreach ($ids as $id) {
+            $dates = collect($frenchDates[$id] ?? []);
+            $frenchDate = $dates->first(fn ($date) => $date >= $today) ?? $dates->last();
+
+            if ($frenchDate) {
+                $results[$id] = ['release_date' => $frenchDate, 'confirmed' => true];
+
+                continue;
+            }
+
+            // Aucune sortie salle française connue (film annoncé de loin, ou appel en échec) :
+            // date générale de la fiche TMDB, déjà mise en cache par find().
+            $general = $this->find($id)['release_date'] ?? null;
+
+            $results[$id] = ['release_date' => filled($general) ? $general : null, 'confirmed' => false];
+        }
+
+        return $results;
+    }
+
     /** Fiche complète d'un film TMDB (détails, crédits, bande-annonce), mise en cache 24 h. */
     public function find(string $tmdbId): ?array
     {

@@ -1,6 +1,6 @@
 document.addEventListener('alpine:init', () => {
     /**
-     * Notifications ("toasts") globales, empilées en bas de l'écran.
+     * Notifications ("toasts") globales, empilées en haut à droite de l'écran (en haut, centrées, sur mobile).
      *
      * Deux façons de les déclencher :
      *  - depuis une action Livewire sur la page courante : $this->dispatch('toast', message: '…', type: 'success')
@@ -179,6 +179,98 @@ document.addEventListener('alpine:init', () => {
 
             get label() {
                 return `${this.remaining} seconde${this.remaining > 1 ? 's' : ''}`;
+            },
+        };
+    });
+
+    /**
+     * Carrousel de la carte « Film préféré » (vue d'ensemble admin) : une diapositive toutes les
+     * 4 secondes, en boucle, que l'on peut aussi parcourir à la main :
+     *  - flèches précédent / suivant et points cliquables (voir le HTML) ;
+     *  - flèches gauche / droite du clavier ;
+     *  - glissement du doigt (swipe) sur écran tactile.
+     *
+     * Le défilement automatique se met en pause au survol de la souris et au focus clavier (variable
+     * `paused`, pilotée depuis le HTML), et ne démarre pas si l'utilisateur a demandé moins
+     * d'animations (prefers-reduced-motion) : la navigation manuelle reste alors disponible.
+     * Chaque action manuelle relance le minuteur, pour ne pas enchaîner juste après un clic.
+     *
+     * Chaque diapositive porte l'attribut data-slide ; leur nombre est relu dans le DOM à chaque
+     * action plutôt que figé à la création, car Livewire peut en ajouter ou en retirer lors d'un
+     * rafraîchissement (ex. un premier film noté qui fait apparaître « le mieux noté »).
+     */
+    Alpine.data('favoriteCarousel', (interval = 4000) => {
+        let timer = null;
+        let touchStartX = null;
+
+        return {
+            active: 0,
+            paused: false,
+
+            init() {
+                this.play();
+            },
+
+            destroy() {
+                this.stop();
+            },
+
+            get total() {
+                return this.$root.querySelectorAll('[data-slide]').length;
+            },
+
+            play() {
+                this.stop();
+
+                if (this.total < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    return;
+                }
+
+                timer = setInterval(() => {
+                    if (! this.paused) {
+                        this.step(1, false);
+                    }
+                }, interval);
+            },
+
+            stop() {
+                clearInterval(timer);
+                timer = null;
+            },
+
+            /** Avance (+1) ou recule (-1) d'une diapositive, en boucle. */
+            step(direction, manual = true) {
+                const total = Math.max(1, this.total);
+
+                // `active % total` : la diapositive affichée a pu disparaître lors d'un rafraîchissement.
+                this.active = ((this.active % total) + direction + total) % total;
+
+                if (manual) {
+                    this.play();
+                }
+            },
+
+            go(index) {
+                this.active = index;
+                this.play();
+            },
+
+            swipeStart(event) {
+                touchStartX = event.changedTouches[0].clientX;
+            },
+
+            /** Un glissement horizontal d'au moins 40 px change de diapositive (gauche = suivante). */
+            swipeEnd(event) {
+                if (touchStartX === null) {
+                    return;
+                }
+
+                const distance = event.changedTouches[0].clientX - touchStartX;
+                touchStartX = null;
+
+                if (Math.abs(distance) >= 40) {
+                    this.step(distance < 0 ? 1 : -1);
+                }
             },
         };
     });

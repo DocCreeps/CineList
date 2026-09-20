@@ -54,5 +54,6 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['password.confirm', 'admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::livewire('/invitations', 'admin.invitations')->name('invitations');
         Route::livewire('/membres', 'admin.members')->name('members');
+        Route::livewire('/membres/{member}', 'admin.member-show')->name('members.show');
     });
 });

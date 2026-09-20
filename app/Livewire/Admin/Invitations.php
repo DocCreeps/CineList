@@ -78,6 +78,8 @@ class Invitations extends Component
         $invite = InviteCode::query()->where('uses_count', 0)->find($inviteCodeId);
 
         if (! $invite) {
+            $this->dispatch('toast', message: 'Ce code ne peut pas être révoqué (introuvable ou déjà utilisé).', type: 'error');
+
             return;
         }
 
@@ -95,6 +97,8 @@ class Invitations extends Component
         $invite = InviteCode::query()->available()->where('uses_count', '>', 0)->find($inviteCodeId);
 
         if (! $invite) {
+            $this->dispatch('toast', message: 'Ce code ne peut pas être désactivé (introuvable ou déjà indisponible).', type: 'error');
+
             return;
         }
 

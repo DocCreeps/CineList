@@ -15,6 +15,6 @@ class LogoutController
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->route('login')->with(['notice' => 'Vous avez été déconnecté.', 'notice_type' => 'info']);
     }
 }

@@ -37,6 +37,38 @@
             </div>
         </section>
 
+        <!-- Studio et film préférés -->
+        <section class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 p-6">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/80">Studio favori</p>
+                <p class="mt-1 truncate text-2xl font-black tracking-tight text-emerald-400">{{ $topStudio ?? '—' }}</p>
+                <p class="mt-1 text-xs text-zinc-500">{{ $topStudioCount ? $topStudioCount . ' film' . ($topStudioCount > 1 ? 's' : '') : 'Pas assez de données.' }}</p>
+            </div>
+            <div class="flex items-center gap-4 rounded-2xl border border-rose-800/40 bg-rose-950/20 p-6">
+                @if($favoriteFilm)
+                <div class="h-24 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
+                    @if($favoriteFilm->poster_url)
+                    <img src="{{ $favoriteFilm->poster_url }}" alt="Affiche de {{ $favoriteFilm->title }}" class="h-full w-full object-cover">
+                    @else
+                    <div class="grid h-full w-full place-items-center p-1 text-center text-[9px] text-zinc-700">{{ $favoriteFilm->title }}</div>
+                    @endif
+                </div>
+                @endif
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500/80">Film préféré</p>
+                    <p class="mt-1 truncate text-2xl font-black tracking-tight text-rose-400" title="{{ $favoriteFilm?->title }}">{{ $favoriteFilm?->title ?? '—' }}</p>
+                    @if($favoriteFilm)
+                    <p class="mt-1 text-xs font-semibold text-amber-400">
+                        {{ str_repeat('★', $favoriteFilm->personal_rating) }}<span class="text-zinc-700">{{ str_repeat('★', 5 - $favoriteFilm->personal_rating) }}</span>
+                        @if($favoriteFilm->year)<span class="ml-1 font-normal text-zinc-500">· {{ $favoriteFilm->year }}</span>@endif
+                    </p>
+                    @else
+                    <p class="mt-1 text-xs text-zinc-500">Notez un film vu pour le voir ici.</p>
+                    @endif
+                </div>
+            </div>
+        </section>
+
         <section class="mt-4 grid gap-4 sm:grid-cols-3">
             <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Vus au cinéma</p>

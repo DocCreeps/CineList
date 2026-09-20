@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin;
 
-use App\Actions\Admin\ComputeMemberDetail;
 use App\Actions\Admin\ComputeMembersOverview;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -12,17 +11,6 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Members extends Component
 {
-    /**
-     * Id du membre actuellement déplié dans la liste (null = personne). Toggle au clic :
-     * cliquer sur le membre déjà ouvert le referme.
-     */
-    public ?int $selectedMemberId = null;
-
-    public function toggleMember(int $memberId): void
-    {
-        $this->selectedMemberId = $this->selectedMemberId === $memberId ? null : $memberId;
-    }
-
     /**
      * Supprime définitivement un compte membre. Ses films (`watchlist_items`) partent avec
      * lui via la contrainte `cascadeOnDelete` sur `user_id`. Deux garde-fous : on ne peut pas
@@ -34,6 +22,8 @@ class Members extends Component
         $member = User::query()->find($memberId);
 
         if (! $member) {
+            $this->dispatch('toast', message: 'Ce membre n\'existe plus.', type: 'error');
+
             return;
         }
 
@@ -52,22 +42,15 @@ class Members extends Component
         $memberName = $member->name;
         $member->delete();
 
-        if ($this->selectedMemberId === $memberId) {
-            $this->selectedMemberId = null;
-        }
-
         $this->dispatch('toast', message: "Membre « {$memberName} » supprimé.");
     }
 
     /**
-     * Calculé à la demande (seulement quand un membre est déplié) plutôt que pour tout le monde
-     * d'un coup, pour ne pas alourdir la requête initiale de la page.
+     * Vue d'ensemble : le détail d'un membre (genres, réalisateurs, films…) vit sur sa propre
+     * page, voir MemberShow.
      */
-    public function with(ComputeMembersOverview $overview, ComputeMemberDetail $detail): array
+    public function with(ComputeMembersOverview $overview): array
     {
-        return [
-            ...$overview->handle(),
-            'selectedMemberDetail' => $this->selectedMemberId ? $detail->handle($this->selectedMemberId) : null,
-        ];
+        return $overview->handle();
     }
 }

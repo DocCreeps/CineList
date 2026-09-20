@@ -145,7 +145,20 @@
                         </div>
                         <div class="min-w-0">
                             <p class="line-clamp-1 text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors">{{ $movie['title'] }}</p>
-                            <p class="mt-0.5 font-mono text-xs font-semibold text-amber-400">{{ \Illuminate\Support\Carbon::parse($movie['release_date'])->translatedFormat('d F Y') }}</p>
+                            <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-xs font-semibold text-amber-400">
+                                @if($movie['release_date'])
+                                {{-- Français forcé sur l'instance : APP_LOCALE vaut « en » par défaut. --}}
+                                <span>{{ \Illuminate\Support\Carbon::parse($movie['release_date'])->locale('fr')->translatedFormat('d F Y') }}</span>
+                                @else
+                                <span class="text-zinc-500">Date à venir</span>
+                                @endif
+
+                                @if($movie['is_out'])
+                                <span class="rounded-md border border-emerald-800/50 bg-emerald-950/60 px-1.5 py-px font-sans text-[10px] font-bold text-emerald-400">En salles</span>
+                                @elseif($movie['release_date'] && ! $movie['confirmed'])
+                                <span class="font-sans text-[10px] font-medium text-zinc-500" title="Aucune sortie salle française n'est encore annoncée : c'est la date de sortie générale du film.">date à confirmer</span>
+                                @endif
+                            </p>
                         </div>
                     </button>
                     @endforeach

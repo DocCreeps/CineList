@@ -89,7 +89,8 @@
                 class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
             >Déjà vue</button>
             @endif
-            @if($isRerelease)
+            @if($isOut || $isRerelease)
+            {{-- Déjà sorti en salles (ou ressortie d'un vieux film) : il peut aussi se rattraper en streaming. --}}
             <button wire:click="add('{{ $movie['tmdb_id'] }}', 'streaming')" class="rounded-lg bg-violet-950/80 border border-violet-800/60 px-2.5 py-1 text-[11px] font-bold text-violet-300 transition hover:bg-violet-900 hover:text-white">+ Streaming</button>
             @endif
             @endif
