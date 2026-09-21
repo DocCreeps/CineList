@@ -7,6 +7,7 @@ use App\Actions\Watchlist\AddMovieToWatchlist;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
+use Livewire\Attributes\Computed;
 
 /**
  * Comportement partagé par toutes les pages qui listent des films TMDB (résultats
@@ -22,6 +23,9 @@ trait InteractsWithMovies
     public ?array $selectedMovie = null;
     public bool $showModal = false;
 
+    /** Panneau « Casting complet » ouvert par-dessus la modale de détails. */
+    public bool $showCast = false;
+
     /**
      * Ouvre la modale de résumé. Un film déjà dans la watchlist a tout en local (aucune requête
      * nécessaire) sauf la bande-annonce, les films similaires et la saga, qui ne sont pas
@@ -35,6 +39,8 @@ trait InteractsWithMovies
         // l'interpoler dans l'URL de l'API et dans les clés de cache (voir TmdbClient).
         abort_unless(ctype_digit($tmdbId), 422);
 
+        $this->showCast = false;
+
         $fetched = $tmdb->find($tmdbId);
         $similar = $fetched ? $tmdb->similarFilms($tmdbId) : [];
         $providers = $tmdb->watchProviders($tmdbId);
@@ -45,11 +51,14 @@ trait InteractsWithMovies
         $item = WatchlistItem::where('tmdb_id', $tmdbId)->first();
         if ($item) {
             $this->selectedMovie = [
+                'tmdb_id' => $tmdbId,
                 'title' => $item->title,
                 'year' => $item->year,
                 'poster_url' => $item->poster_url,
                 'director' => $item->director,
                 'actors' => $item->actors,
+                'studio' => $item->studio ?: ($fetched['studio'] ?? null),
+                ...$this->extraDetails($fetched),
                 'plot' => $item->plot,
                 'genre' => $item->genre,
                 'runtime' => $item->runtime,
@@ -77,11 +86,14 @@ trait InteractsWithMovies
         }
 
         $this->selectedMovie = [
+            'tmdb_id' => $tmdbId,
             'title' => $fetched['title'] ?? $fallback['title'] ?? '',
             'year' => $fetched['year'] ?? $fallback['year'] ?? null,
             'poster_url' => $fetched['poster_url'] ?? $fallback['poster_url'] ?? null,
             'director' => $fetched['director'] ?? $fallback['director'] ?? null,
             'actors' => $fetched['actors'] ?? $fallback['actors'] ?? null,
+            'studio' => $fetched['studio'] ?? $fallback['studio'] ?? null,
+            ...$this->extraDetails($fetched),
             'plot' => $fetched['plot'] ?? $fallback['plot'] ?? null,
             'genre' => $fetched['genre'] ?? null,
             'runtime' => $fetched['runtime'] ?? null,
@@ -126,7 +138,61 @@ trait InteractsWithMovies
     public function closeModal(): void
     {
         $this->showModal = false;
+        $this->showCast = false;
         $this->selectedMovie = null;
+    }
+
+    /** Ouvre le panneau « Casting complet » du film affiché dans la modale. */
+    public function openCast(): void
+    {
+        if ($this->selectedMovie && ! empty($this->selectedMovie['tmdb_id'])) {
+            $this->showCast = true;
+        }
+    }
+
+    public function closeCast(): void
+    {
+        $this->showCast = false;
+    }
+
+    /**
+     * Casting complet et équipe technique du film affiché (voir TmdbClient::credits()). Propriété
+     * calculée plutôt que publique : elle n'est ainsi pas sérialisée dans l'état Livewire envoyé à
+     * chaque requête, et TmdbClient la garde en cache. Vide tant que le panneau est fermé.
+     *
+     * @return array{cast: array<int, array{name: string, character: ?string, photo_url: ?string}>, crew: array<string, string>, total: int}
+     */
+    #[Computed]
+    public function fullCredits(): array
+    {
+        if (! $this->showCast || empty($this->selectedMovie['tmdb_id'])) {
+            return ['cast' => [], 'crew' => [], 'total' => 0];
+        }
+
+        return app(TmdbClient::class)->credits($this->selectedMovie['tmdb_id']);
+    }
+
+    /**
+     * Informations complémentaires de la fiche TMDB affichées dans la modale (titre original, slogan,
+     * date de sortie, pays, langue, budget, recettes, scénaristes). Ces champs ne sont pas
+     * enregistrés avec le film dans la liste : ils viennent toujours de TMDB (fiche en cache 24 h)
+     * et restent à null si TMDB ne répond pas.
+     *
+     * @param  array<string, mixed>|null  $fetched  Résultat de TmdbClient::find().
+     * @return array<string, mixed>
+     */
+    private function extraDetails(?array $fetched): array
+    {
+        return [
+            'original_title' => $fetched['original_title'] ?? null,
+            'tagline' => $fetched['tagline'] ?? null,
+            'release_date' => $fetched['release_date'] ?? null,
+            'countries' => $fetched['countries'] ?? null,
+            'original_language' => $fetched['original_language'] ?? null,
+            'budget' => $fetched['budget'] ?? null,
+            'revenue' => $fetched['revenue'] ?? null,
+            'writers' => $fetched['writers'] ?? null,
+        ];
     }
 
     /**

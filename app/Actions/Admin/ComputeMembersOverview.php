@@ -67,13 +67,12 @@ class ComputeMembersOverview
             'watchedTotal' => $watchedItems->count(),
             'genreCounts' => $genreCounts,
             'topGenreCount' => $genreCounts->first(),
-            'topDirector' => $directorCounts->keys()->first(),
-            'topDirectorCount' => $directorCounts->first(),
-            'topStudio' => $studioCounts->keys()->first(),
-            'topStudioCount' => $studioCounts->first(),
+            // Podiums : les 3 premiers (nom => nombre de films vus), du plus au moins regardé.
+            'topDirectors' => $directorCounts->take(3),
+            'topStudios' => $studioCounts->take(3),
             // Films préférés : calculés sur TOUS les statuts (à voir, vu, à revoir), car le nombre de
-            // membres qui ont ajouté un film compte autant que sa note.
-            'favoriteFilms' => Favorites::withoutDuplicates(Favorites::filmsAcrossMembers($items)),
+            // membres qui ont ajouté un film compte autant que sa note. Trois films par angle.
+            'favoriteFilms' => Favorites::withoutDuplicates(Favorites::filmsAcrossMembers($items, 3)),
         ];
     }
 }

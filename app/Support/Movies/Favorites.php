@@ -72,64 +72,73 @@ class Favorites
     }
 
     /**
-     * Films préférés de l'ensemble des membres, sous trois angles (chaque entrée vaut null quand
-     * aucun film ne s'y prête) :
+     * Classements des films préférés de l'ensemble des membres, sous trois angles (chaque classement
+     * est vide quand aucun film ne s'y prête) :
      *  - `general` : note ET popularité combinées (voir SCORE_WEIGHT_RATING / SCORE_WEIGHT_POPULARITY) ;
-     *  - `adds`    : le film ajouté par le plus de membres, quel que soit son statut ;
-     *  - `rating`  : le film le mieux noté en moyenne, sans tenir compte des ajouts.
+     *  - `adds`    : les films ajoutés par le plus de membres, quel que soit leur statut ;
+     *  - `rating`  : les films les mieux notés en moyenne, sans tenir compte des ajouts.
+     *
+     * Chaque classement contient au plus `$limit` films (3 par défaut : le n° 1 puis les deux suivants),
+     * du meilleur au moins bon.
      *
      * `$items` doit contenir les films de tous les membres ET de tous les statuts (à voir, vu, à
      * revoir) : un ajout compte dès que le film est dans la liste d'un membre. Chaque film est
      * regroupé par identifiant TMDB, quel que soit le membre qui l'a ajouté ou noté.
      *
      * @param  Collection<int, WatchlistItem>  $items
-     * @return array{general: ?array<string, mixed>, adds: ?array<string, mixed>, rating: ?array<string, mixed>}
+     * @return array{general: Collection<int, array<string, mixed>>, adds: Collection<int, array<string, mixed>>, rating: Collection<int, array<string, mixed>>}
      */
-    public static function filmsAcrossMembers(Collection $items): array
+    public static function filmsAcrossMembers(Collection $items, int $limit = 3): array
     {
         $films = self::groupFilms($items);
-
-        if ($films->isEmpty()) {
-            return ['general' => null, 'adds' => null, 'rating' => null];
-        }
 
         return [
             'general' => $films
                 ->sortByDesc(fn (array $film) => [$film['score'], $film['adds'], $film['average'] ?? 0])
-                ->first(),
+                ->take($limit)
+                ->values(),
             'adds' => $films
                 ->sortByDesc(fn (array $film) => [$film['adds'], $film['average'] ?? 0, $film['ratings']])
-                ->first(),
+                ->take($limit)
+                ->values(),
             // Sans note, un film ne peut pas prétendre au titre de « mieux noté ».
             'rating' => $films
                 ->filter(fn (array $film) => $film['ratings'] > 0)
                 ->sortByDesc(fn (array $film) => [$film['average'], $film['ratings'], $film['adds']])
-                ->first(),
+                ->take($limit)
+                ->values(),
         ];
     }
 
     /**
-     * Évite d'afficher deux fois le même film dans le carrousel des favoris :
-     *  - si le film « général » est aussi en tête des ajouts ou des notes, on ne garde pas la
+     * Évite d'afficher deux fois le même film n° 1 dans le carrousel des favoris :
+     *  - si le n° 1 « général » est aussi en tête des ajouts ou des notes, on ne garde pas la
      *    diapositive générale (elle n'apporterait rien de plus) ;
-     *  - si les trois angles désignent le même film, une seule diapositive suffit : la générale.
+     *  - si les trois angles désignent le même n° 1, une seule diapositive suffit : la générale.
      *
-     * @param  array{general: ?array<string, mixed>, adds: ?array<string, mixed>, rating: ?array<string, mixed>}  $favorites  Résultat de filmsAcrossMembers().
-     * @return array{general: ?array<string, mixed>, adds: ?array<string, mixed>, rating: ?array<string, mixed>}
+     * Seuls les n° 1 sont comparés : une diapositive écartée l'est en entier (son classement devient
+     * vide), une diapositive conservée garde son classement complet.
+     *
+     * @param  array{general: Collection<int, array<string, mixed>>, adds: Collection<int, array<string, mixed>>, rating: Collection<int, array<string, mixed>>}  $favorites  Résultat de filmsAcrossMembers().
+     * @return array{general: Collection<int, array<string, mixed>>, adds: Collection<int, array<string, mixed>>, rating: Collection<int, array<string, mixed>>}
      */
     public static function withoutDuplicates(array $favorites): array
     {
+        $topGeneral = $favorites['general']->first();
+        $topAdds = $favorites['adds']->first();
+        $topRating = $favorites['rating']->first();
+
         $same = fn (?array $a, ?array $b) => $a !== null && $b !== null && $a['tmdb_id'] === $b['tmdb_id'];
 
-        $sameAsAdds = $same($favorites['general'], $favorites['adds']);
-        $sameAsRating = $same($favorites['general'], $favorites['rating']);
+        $sameAsAdds = $same($topGeneral, $topAdds);
+        $sameAsRating = $same($topGeneral, $topRating);
 
-        if ($sameAsAdds && ($sameAsRating || $favorites['rating'] === null)) {
-            return ['general' => $favorites['general'], 'adds' => null, 'rating' => null];
+        if ($sameAsAdds && ($sameAsRating || $topRating === null)) {
+            return ['general' => $favorites['general'], 'adds' => collect(), 'rating' => collect()];
         }
 
         if ($sameAsAdds || $sameAsRating) {
-            $favorites['general'] = null;
+            $favorites['general'] = collect();
         }
 
         return $favorites;

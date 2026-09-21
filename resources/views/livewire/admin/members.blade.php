@@ -31,27 +31,75 @@
             </div>
         </section>
 
-        <!-- Favoris, tous membres confondus (réalisateur et studio : films déjà vus ; films préférés : tous statuts) -->
-        <section class="mt-3 grid gap-3 md:grid-cols-3">
-            <div class="rounded-2xl border border-violet-800/40 bg-violet-950/20 p-5">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-500/80">Réalisateur n° 1</p>
-                <p class="mt-1 truncate text-2xl font-black tracking-tight text-violet-400">{{ $topDirector ?? '—' }}</p>
-                <p class="mt-0.5 text-xs text-zinc-500">{{ $topDirectorCount ? $topDirectorCount.' film'.($topDirectorCount > 1 ? 's' : '').' vu'.($topDirectorCount > 1 ? 's' : '') : 'aucun réalisateur renseigné' }}</p>
+        <!-- Favoris, tous membres confondus (réalisateurs et studios : films déjà vus ; films préférés : tous statuts). Podiums de 3. -->
+        <section class="mt-3 grid gap-3 md:grid-cols-2">
+            @php
+                $podiums = [
+                    [
+                        'title' => 'Top 3 réalisateurs',
+                        'entries' => $topDirectors,
+                        'empty' => 'aucun réalisateur renseigné',
+                        'card' => 'border-violet-800/40 bg-violet-950/20',
+                        'label' => 'text-violet-500/80',
+                        'name' => 'text-violet-400',
+                    ],
+                    [
+                        'title' => 'Top 3 studios',
+                        'entries' => $topStudios,
+                        'empty' => 'aucun studio renseigné',
+                        'card' => 'border-emerald-800/40 bg-emerald-950/20',
+                        'label' => 'text-emerald-500/80',
+                        'name' => 'text-emerald-400',
+                    ],
+                ];
+            @endphp
+            @foreach ($podiums as $podium)
+            <div class="rounded-2xl border {{ $podium['card'] }} p-5">
+                <p class="text-[10px] font-bold uppercase tracking-[0.2em] {{ $podium['label'] }}">{{ $podium['title'] }}</p>
+                @if ($podium['entries']->isEmpty())
+                <p class="mt-1 truncate text-2xl font-black tracking-tight {{ $podium['name'] }}">—</p>
+                <p class="mt-0.5 text-xs text-zinc-500">{{ $podium['empty'] }}</p>
+                @else
+                <ol class="mt-2.5 space-y-2">
+                    @foreach ($podium['entries'] as $name => $count)
+                    <li class="flex items-center gap-3">
+                        <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-black {{ $loop->first ? 'bg-amber-500 text-zinc-950' : 'bg-zinc-800 text-zinc-400' }}">{{ $loop->iteration }}</span>
+                        <span class="min-w-0 flex-1 truncate {{ $loop->first ? 'text-2xl font-black tracking-tight '.$podium['name'] : 'text-sm font-bold text-zinc-300' }}" title="{{ $name }}">{{ $name }}</span>
+                        <span class="shrink-0 text-xs text-zinc-500">{{ $count }} film{{ $count > 1 ? 's' : '' }} vu{{ $count > 1 ? 's' : '' }}</span>
+                    </li>
+                    @endforeach
+                </ol>
+                @endif
             </div>
-            <div class="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 p-5">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/80">Studio n° 1</p>
-                <p class="mt-1 truncate text-2xl font-black tracking-tight text-emerald-400">{{ $topStudio ?? '—' }}</p>
-                <p class="mt-0.5 text-xs text-zinc-500">{{ $topStudioCount ? $topStudioCount.' film'.($topStudioCount > 1 ? 's' : '').' vu'.($topStudioCount > 1 ? 's' : '') : 'aucun studio renseigné' }}</p>
-            </div>
-            {{-- Films préférés : un carrousel à trois angles au plus (note + ajouts / ajouts seuls / notes seules), sans doublon : voir Favorites::filmsAcrossMembers et Favorites::withoutDuplicates. --}}
+            @endforeach
+
+            {{-- Films préférés : un carrousel à trois angles au plus (note + ajouts / ajouts seuls / notes seules), sans doublon : voir Favorites::filmsAcrossMembers et Favorites::withoutDuplicates. Chaque diapositive montre le n° 1 de l'angle, avec les n° 2 et 3 à côté. --}}
             @php
                 $slides = collect([
-                    ['key' => 'general', 'label' => 'Film préféré', 'film' => $favoriteFilms['general']],
-                    ['key' => 'adds', 'label' => 'Le plus ajouté', 'film' => $favoriteFilms['adds']],
-                    ['key' => 'rating', 'label' => 'Le mieux noté', 'film' => $favoriteFilms['rating']],
-                ])->filter(fn ($slide) => $slide['film'] !== null)->values();
+                    ['key' => 'general', 'label' => 'Film préféré', 'films' => $favoriteFilms['general']],
+                    ['key' => 'adds', 'label' => 'Le plus ajouté', 'films' => $favoriteFilms['adds']],
+                    ['key' => 'rating', 'label' => 'Le mieux noté', 'films' => $favoriteFilms['rating']],
+                ])->filter(fn ($slide) => $slide['films']->isNotEmpty())->values();
 
                 $statusLabels = ['to_watch' => 'à voir', 'watched' => 'vu', 'to_rewatch' => 'à revoir'];
+
+                // Ligne de détail d'un film, selon l'angle de la diapositive où il apparaît.
+                $describeFilm = function (array $film, string $angle) use ($statusLabels): string {
+                    $addsLabel = 'ajouté par '.$film['adds'].' membre'.($film['adds'] > 1 ? 's' : '');
+                    $ratingLabel = $film['average'] !== null
+                        ? $film['average'].'/5 en moyenne · '.$film['ratings'].' note'.($film['ratings'] > 1 ? 's' : '')
+                        : 'pas encore noté';
+                    $statusLabel = collect($film['statuses'])
+                        ->filter()
+                        ->map(fn ($count, $status) => $count.' '.($status === 'watched' && $count > 1 ? 'vus' : $statusLabels[$status]))
+                        ->implode(' · ');
+
+                    return match ($angle) {
+                        'general' => $addsLabel.' · '.$ratingLabel,
+                        'adds' => $addsLabel.' · '.$statusLabel,
+                        default => $ratingLabel,
+                    };
+                };
             @endphp
             {{-- Pause du défilement auto : souris (pas le tactile, où le « survol » resterait bloqué après un glissement) et focus clavier (pas après un simple clic). --}}
             <div
@@ -64,7 +112,7 @@
                 x-on:keydown.right="step(1)"
                 x-on:touchstart.passive="swipeStart($event)"
                 x-on:touchend.passive="swipeEnd($event)"
-                class="overflow-hidden rounded-2xl border border-rose-800/40 bg-rose-950/20 p-5"
+                class="overflow-hidden rounded-2xl border border-rose-800/40 bg-rose-950/20 p-5 md:col-span-2"
             >
                 @if ($slides->isEmpty())
                 <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500/80">Film préféré</p>
@@ -75,15 +123,8 @@
                 <div class="grid grid-cols-[minmax(0,1fr)]">
                     @foreach ($slides as $index => $slide)
                     @php
-                        $film = $slide['film'];
-                        $addsLabel = $film['adds'].' membre'.($film['adds'] > 1 ? 's' : '');
-                        $ratingLabel = $film['average'] !== null
-                            ? $film['average'].'/5 en moyenne · '.$film['ratings'].' note'.($film['ratings'] > 1 ? 's' : '')
-                            : 'pas encore noté';
-                        $statusLabel = collect($film['statuses'])
-                            ->filter()
-                            ->map(fn ($count, $status) => $count.' '.($status === 'watched' && $count > 1 ? 'vus' : $statusLabels[$status]))
-                            ->implode(' · ');
+                        $film = $slide['films']->first();
+                        $runnersUp = $slide['films']->slice(1);
                     @endphp
                     <div
                         wire:key="favorite-slide-{{ $slide['key'] }}"
@@ -91,27 +132,42 @@
                         @if ($index > 0) x-cloak @endif
                         x-bind:class="active === {{ $index }} ? 'opacity-100' : 'pointer-events-none opacity-0'"
                         x-bind:aria-hidden="active !== {{ $index }} ? 'true' : 'false'"
-                        class="col-start-1 row-start-1 flex min-w-0 items-center gap-4 transition-opacity duration-500"
+                        class="col-start-1 row-start-1 grid min-w-0 gap-4 transition-opacity duration-500 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:items-center md:gap-6"
                     >
-                        @if ($film['poster_url'])
-                        <img src="{{ $film['poster_url'] }}" alt="Affiche de {{ $film['title'] }}" loading="lazy" class="h-20 w-14 shrink-0 rounded-lg object-cover">
-                        @endif
-                        <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500/80">{{ $slide['label'] }}</p>
-                            <p class="mt-1 line-clamp-2 break-words text-2xl font-black leading-tight tracking-tight text-rose-400" title="{{ $film['title'] }}">{{ $film['title'] }}</p>
-                            <p class="mt-0.5 break-words text-xs text-zinc-500">
-                                @if ($slide['key'] === 'general')
-                                ajouté par {{ $addsLabel }} · {{ $ratingLabel }}
-                                @elseif ($slide['key'] === 'adds')
-                                ajouté par {{ $addsLabel }} · {{ $statusLabel }}
-                                @else
-                                {{ $ratingLabel }}
-                                @endif
-                            </p>
-                            @if ($slide['key'] === 'general')
-                            <p class="mt-0.5 text-[11px] text-zinc-600" title="60 % de la note (lissée) + 40 % du nombre de membres qui l'ont ajouté">Score {{ $film['score'] }}/100 · note + ajouts</p>
+                        {{-- N° 1 --}}
+                        <div class="flex min-w-0 items-center gap-4">
+                            @if ($film['poster_url'])
+                            <img src="{{ $film['poster_url'] }}" alt="Affiche de {{ $film['title'] }}" loading="lazy" class="h-24 w-16 shrink-0 rounded-lg object-cover">
                             @endif
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500/80">{{ $slide['label'] }}</p>
+                                <p class="mt-1 line-clamp-2 break-words text-2xl font-black leading-tight tracking-tight text-rose-400" title="{{ $film['title'] }}">{{ $film['title'] }}</p>
+                                <p class="mt-0.5 break-words text-xs text-zinc-500">{{ $describeFilm($film, $slide['key']) }}</p>
+                                @if ($slide['key'] === 'general')
+                                <p class="mt-0.5 text-[11px] text-zinc-600" title="60 % de la note (lissée) + 40 % du nombre de membres qui l'ont ajouté">Score {{ $film['score'] }}/100 · note + ajouts</p>
+                                @endif
+                            </div>
                         </div>
+
+                        {{-- N° 2 et 3, à côté (sous le n° 1 sur mobile) --}}
+                        @if ($runnersUp->isNotEmpty())
+                        <ol class="min-w-0 space-y-2.5 border-t border-rose-900/40 pt-3 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+                            @foreach ($runnersUp as $runnerUp)
+                            <li class="flex min-w-0 items-center gap-3">
+                                <span class="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-zinc-800 text-[10px] font-black text-zinc-400">{{ $loop->iteration + 1 }}</span>
+                                @if ($runnerUp['poster_url'])
+                                <img src="{{ $runnerUp['poster_url'] }}" alt="Affiche de {{ $runnerUp['title'] }}" loading="lazy" class="h-14 w-10 shrink-0 rounded-md object-cover">
+                                @else
+                                <div class="h-14 w-10 shrink-0 rounded-md bg-zinc-950" aria-hidden="true"></div>
+                                @endif
+                                <div class="min-w-0">
+                                    <p class="line-clamp-2 break-words text-sm font-bold leading-snug text-rose-300/90" title="{{ $runnerUp['title'] }}">{{ $runnerUp['title'] }}</p>
+                                    <p class="mt-0.5 break-words text-[11px] text-zinc-500">{{ $describeFilm($runnerUp, $slide['key']) }}</p>
+                                </div>
+                            </li>
+                            @endforeach
+                        </ol>
+                        @endif
                     </div>
                     @endforeach
                 </div>

@@ -7,6 +7,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class TmdbClient
 {
@@ -452,12 +453,16 @@ class TmdbClient
         return $results;
     }
 
-    /** Fiche complète d'un film TMDB (détails, crédits, bande-annonce), mise en cache 24 h. */
+    /**
+     * Fiche complète d'un film TMDB (détails, crédits, bande-annonce), mise en cache 24 h.
+     * La clé de cache est versionnée : elle change chaque fois que de nouveaux champs sont ajoutés
+     * à la fiche (v4 : titre original, slogan, pays, langue, budget, recettes, scénaristes).
+     */
     public function find(string $tmdbId): ?array
     {
         if (blank(config('services.tmdb.token'))) return null;
 
-        return Cache::remember("tmdb.movie.v3.{$tmdbId}", now()->addDay(), function () use ($tmdbId) {
+        return Cache::remember("tmdb.movie.v4.{$tmdbId}", now()->addDay(), function () use ($tmdbId) {
             try {
                 $response = $this->client()->get("movie/{$tmdbId}", $this->withAuth([
                     'language' => 'fr-FR', // Force le français
@@ -470,6 +475,16 @@ class TmdbClient
                 $director = collect($data['credits']['crew'] ?? [])->firstWhere('job', 'Director')['name'] ?? null;
                 $actors = collect($data['credits']['cast'] ?? [])->take(3)->pluck('name')->implode(', ');
                 $studio = collect($data['production_companies'] ?? [])->pluck('name')->implode(', ');
+                $writers = collect($data['credits']['crew'] ?? [])
+                    ->whereIn('job', ['Screenplay', 'Writer'])
+                    ->pluck('name')
+                    ->unique()
+                    ->take(3)
+                    ->implode(', ');
+                $countries = collect($data['production_countries'] ?? [])
+                    ->map(fn ($country) => $this->frenchRegionName($country['iso_3166_1'] ?? '', $country['name'] ?? ''))
+                    ->filter()
+                    ->implode(', ');
 
                 // La requête fr-FR ci-dessus ne renvoie que les vidéos étiquetées françaises ; si
                 // le film n'en a aucune (fréquent pour les films anciens ou peu grand public), une
@@ -501,11 +516,123 @@ class TmdbClient
                     'trailer_lang' => $trailer['lang'] ?? null,
                     'collection_id' => $data['belongs_to_collection']['id'] ?? null,
                     'collection_name' => $data['belongs_to_collection']['name'] ?? null,
+                    // Infos complémentaires de la modale de détails. Un budget ou des recettes à 0
+                    // signifient « non renseigné » chez TMDB : on les remplace par null.
+                    'original_title' => filled($data['original_title'] ?? null) && ($data['original_title'] ?? null) !== ($data['title'] ?? null)
+                        ? $data['original_title']
+                        : null,
+                    'tagline' => filled($data['tagline'] ?? null) ? $data['tagline'] : null,
+                    'countries' => $countries ?: null,
+                    'original_language' => $this->frenchLanguageName($data['original_language'] ?? null, $data['spoken_languages'] ?? []),
+                    'budget' => ($data['budget'] ?? 0) > 0 ? (int) $data['budget'] : null,
+                    'revenue' => ($data['revenue'] ?? 0) > 0 ? (int) $data['revenue'] : null,
+                    'writers' => $writers ?: null,
                 ];
             } catch (\Exception $e) {
                 return null;
             }
         });
+    }
+
+    /**
+     * Casting complet et équipe technique principale d'un film (endpoint `movie/{id}/credits`),
+     * pour le panneau « Casting complet » de la modale de détails. Appelé uniquement à l'ouverture
+     * de ce panneau (jamais avec la fiche du film) : la liste peut compter des centaines de noms.
+     * Mis en cache 3 jours ; un échec n'est pas mis en cache (on retentera au prochain clic).
+     *
+     * `cast` est limité aux 100 premiers rôles (ordre du générique) ; `total` donne le nombre réel.
+     * `crew` associe un intitulé (« Réalisation », « Scénario »…) aux noms correspondants.
+     *
+     * @return array{cast: array<int, array{name: string, character: ?string, photo_url: ?string}>, crew: array<string, string>, total: int}
+     */
+    public function credits(string $tmdbId): array
+    {
+        $empty = ['cast' => [], 'crew' => [], 'total' => 0];
+        if (blank(config('services.tmdb.token'))) return $empty;
+
+        $credits = Cache::remember("tmdb.movie.credits.v1.{$tmdbId}", now()->addDays(3), function () use ($tmdbId) {
+            try {
+                $response = $this->client()->get("movie/{$tmdbId}/credits", $this->withAuth([
+                    'language' => 'fr-FR',
+                ]));
+
+                if ($response->failed()) return null;
+
+                $cast = collect($response->json('cast', []))->filter(fn ($person) => ! empty($person['name']))->sortBy('order')->values();
+
+                // Intitulé affiché => métiers TMDB correspondants, dans l'ordre d'affichage.
+                $crewJobs = [
+                    'Réalisation' => ['Director'],
+                    'Scénario' => ['Screenplay', 'Writer'],
+                    'Photographie' => ['Director of Photography'],
+                    'Montage' => ['Editor'],
+                    'Musique' => ['Original Music Composer'],
+                ];
+                $crew = [];
+                foreach ($crewJobs as $label => $jobs) {
+                    $names = collect($response->json('crew', []))
+                        ->whereIn('job', $jobs)
+                        ->pluck('name')
+                        ->filter()
+                        ->unique()
+                        ->take(4)
+                        ->implode(', ');
+
+                    if ($names !== '') $crew[$label] = $names;
+                }
+
+                return [
+                    'cast' => $cast->take(100)->map(fn ($person) => [
+                        'name' => $person['name'],
+                        'character' => filled($person['character'] ?? null) ? $person['character'] : null,
+                        'photo_url' => ! empty($person['profile_path']) ? 'https://image.tmdb.org/t/p/w185' . $person['profile_path'] : null,
+                    ])->all(),
+                    'crew' => $crew,
+                    'total' => $cast->count(),
+                ];
+            } catch (\Exception $e) {
+                return null;
+            }
+        });
+
+        return $credits ?? $empty;
+    }
+
+    /** Nom d'un pays en français (« États-Unis ») via l'extension intl ; repli sur le nom fourni par TMDB. */
+    private function frenchRegionName(string $isoCode, string $fallback): string
+    {
+        if ($isoCode !== '' && class_exists(\Locale::class)) {
+            $name = \Locale::getDisplayRegion('-' . $isoCode, 'fr');
+
+            if ($name !== '' && $name !== '-' . $isoCode && strcasecmp($name, $isoCode) !== 0) {
+                return $name;
+            }
+        }
+
+        return $fallback !== '' ? $fallback : $isoCode;
+    }
+
+    /**
+     * Nom de la langue originale en français (« Anglais ») via l'extension intl ; repli sur le nom
+     * anglais de la liste `spoken_languages` de TMDB, puis sur le code ISO en majuscules.
+     *
+     * @param array<int, array<string, mixed>> $spokenLanguages
+     */
+    private function frenchLanguageName(?string $code, array $spokenLanguages): ?string
+    {
+        if (blank($code)) return null;
+
+        if (class_exists(\Locale::class)) {
+            $name = \Locale::getDisplayLanguage($code, 'fr');
+
+            if ($name !== '' && strcasecmp($name, $code) !== 0) {
+                return Str::ucfirst($name);
+            }
+        }
+
+        $spoken = collect($spokenLanguages)->firstWhere('iso_639_1', $code);
+
+        return $spoken['english_name'] ?? $spoken['name'] ?? strtoupper($code);
     }
 
     /**

@@ -1,5 +1,5 @@
 @if ($showModal && $selectedMovie)
-<div x-data="{ openProvider: null }" x-on:keydown.escape.window="$wire.closeModal()" class="fixed inset-0 z-50 overflow-y-auto bg-black/80 px-4 py-8 backdrop-blur-md transition-opacity">
+<div x-data="{ openProvider: null }" x-on:keydown.escape.window="$wire.showCast ? $wire.closeCast() : $wire.closeModal()" class="fixed inset-0 z-50 overflow-y-auto bg-black/80 px-4 py-8 backdrop-blur-md transition-opacity">
     <div class="grid min-h-full place-items-center" wire:click.self="closeModal">
         <div class="relative flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-zinc-900 border border-zinc-800 shadow-2xl sm:flex-row" wire:click.stop>
             <button wire:click="closeModal" class="absolute right-3 top-3 z-20 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-zinc-400 backdrop-blur-md transition hover:bg-black hover:text-white" aria-label="Fermer">✕</button>
@@ -26,6 +26,9 @@
                 </div>
 
                 <h2 class="mt-1.5 font-serif text-xl font-normal text-zinc-100 sm:text-2xl">{{ $selectedMovie['title'] }}</h2>
+                @if($selectedMovie['tagline'] ?? null)
+                <p class="mt-1 text-xs italic text-zinc-500">« {{ $selectedMovie['tagline'] }} »</p>
+                @endif
 
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                     @if($selectedMovie['imdb_rating'])
@@ -54,12 +57,23 @@
                 @endif
 
                 <div class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-zinc-800 pt-4 md:grid-cols-2">
-                    @if($selectedMovie['director'] || $selectedMovie['actors'])
                     <dl class="min-w-0 space-y-1.5 self-start text-xs">
                         @if($selectedMovie['director'])
                         <div class="flex gap-1.5">
                             <dt class="shrink-0 font-bold text-zinc-400">Réalisation :</dt>
                             <dd class="min-w-0 text-zinc-200">{{ $selectedMovie['director'] }}</dd>
+                        </div>
+                        @endif
+                        @if($selectedMovie['writers'] ?? null)
+                        <div class="flex gap-1.5">
+                            <dt class="shrink-0 font-bold text-zinc-400">Scénario :</dt>
+                            <dd class="min-w-0 text-zinc-200">{{ $selectedMovie['writers'] }}</dd>
+                        </div>
+                        @endif
+                        @if($selectedMovie['studio'] ?? null)
+                        <div class="flex gap-1.5">
+                            <dt class="shrink-0 font-bold text-zinc-400">Studio :</dt>
+                            <dd class="min-w-0 break-words text-zinc-200">{{ $selectedMovie['studio'] }}</dd>
                         </div>
                         @endif
                         @if($selectedMovie['actors'])
@@ -68,8 +82,21 @@
                             <dd class="min-w-0 text-zinc-200">{{ $selectedMovie['actors'] }}</dd>
                         </div>
                         @endif
+                        @if($selectedMovie['tmdb_id'] ?? null)
+                        <div>
+                            <button
+                                type="button"
+                                wire:click="openCast"
+                                wire:loading.attr="disabled"
+                                wire:target="openCast"
+                                class="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/70 px-2.5 py-1.5 text-[11px] font-bold text-zinc-200 transition hover:border-amber-500/50 hover:text-amber-400 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                <span wire:loading.remove wire:target="openCast">Voir le casting complet</span>
+                                <span wire:loading wire:target="openCast">Chargement…</span>
+                            </button>
+                        </div>
+                        @endif
                     </dl>
-                    @endif
 
                     @if($selectedMovie['trailer_key'] ?? null)
                     <div class="min-w-0">
@@ -90,6 +117,33 @@
                 <p class="mt-3 text-xs leading-relaxed text-zinc-400">{{ $selectedMovie['plot'] }}</p>
                 @else
                 <p class="mt-3 text-xs italic text-zinc-600">Résumé indisponible.</p>
+                @endif
+
+                @php
+                    $releaseDate = filled($selectedMovie['release_date'] ?? null) ? \Illuminate\Support\Carbon::parse($selectedMovie['release_date'])->locale('fr')->translatedFormat('j F Y') : null;
+                    $formatMoney = fn (int $amount): string => match (true) {
+                        $amount >= 1_000_000_000 => rtrim(rtrim(number_format($amount / 1_000_000_000, 2, ',', ' '), '0'), ',') . ' Md $',
+                        $amount >= 1_000_000 => rtrim(rtrim(number_format($amount / 1_000_000, 1, ',', ' '), '0'), ',') . ' M$',
+                        default => number_format($amount, 0, ',', ' ') . ' $',
+                    };
+                    $facts = array_filter([
+                        'Titre original' => $selectedMovie['original_title'] ?? null,
+                        'Sortie' => $releaseDate,
+                        'Langue originale' => $selectedMovie['original_language'] ?? null,
+                        'Pays' => $selectedMovie['countries'] ?? null,
+                        'Budget' => ($selectedMovie['budget'] ?? null) ? $formatMoney((int) $selectedMovie['budget']) : null,
+                        'Recettes' => ($selectedMovie['revenue'] ?? null) ? $formatMoney((int) $selectedMovie['revenue']) : null,
+                    ]);
+                @endphp
+                @if(! empty($facts))
+                <dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 border-t border-zinc-800 pt-4 text-xs sm:grid-cols-3">
+                    @foreach($facts as $label => $value)
+                    <div class="min-w-0 {{ $label === 'Titre original' || $label === 'Pays' ? 'col-span-2 sm:col-span-1' : '' }}">
+                        <dt class="text-[10px] font-bold uppercase tracking-wide text-zinc-500">{{ $label }}</dt>
+                        <dd class="mt-0.5 break-words text-zinc-200">{{ $value }}</dd>
+                    </div>
+                    @endforeach
+                </dl>
                 @endif
 
                 @if(!empty($selectedMovie['watch_providers']) && (!empty($selectedMovie['watch_providers']['flatrate']) || !empty($selectedMovie['watch_providers']['rent']) || !empty($selectedMovie['watch_providers']['buy'])))
@@ -189,6 +243,65 @@
         </div>
     </div>
 </div>
+
+@if ($showCast)
+@php($credits = $this->fullCredits)
+<div class="fixed inset-0 z-[60] overflow-y-auto bg-black/70 px-4 py-8 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Casting complet de {{ $selectedMovie['title'] }}">
+    <div class="grid min-h-full place-items-start sm:place-items-center" wire:click.self="closeCast">
+        <div class="relative w-full max-w-4xl rounded-3xl border border-zinc-800 bg-zinc-900 shadow-2xl" wire:click.stop>
+            <div class="sticky top-0 z-10 flex items-start justify-between gap-3 rounded-t-3xl border-b border-zinc-800 bg-zinc-900/95 px-5 py-4 backdrop-blur-md sm:px-6">
+                <div class="min-w-0">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Casting complet</p>
+                    <h3 class="mt-0.5 truncate font-serif text-lg text-zinc-100" title="{{ $selectedMovie['title'] }}">{{ $selectedMovie['title'] }}@if($selectedMovie['year'] ?? null) <span class="text-sm text-zinc-500">({{ $selectedMovie['year'] }})</span>@endif</h3>
+                </div>
+                <button wire:click="closeCast" class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/60 text-zinc-400 transition hover:bg-black hover:text-white" aria-label="Retour à la fiche du film">✕</button>
+            </div>
+
+            <div class="px-5 py-5 sm:px-6">
+                @if(! empty($credits['crew']))
+                <dl class="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+                    @foreach($credits['crew'] as $label => $names)
+                    <div class="flex gap-1.5">
+                        <dt class="shrink-0 font-bold text-zinc-400">{{ $label }} :</dt>
+                        <dd class="min-w-0 text-zinc-200">{{ $names }}</dd>
+                    </div>
+                    @endforeach
+                </dl>
+                @endif
+
+                @if(empty($credits['cast']))
+                <p class="py-10 text-center text-sm text-zinc-500">Casting indisponible pour ce film.</p>
+                @else
+                <p class="{{ empty($credits['crew']) ? '' : 'mt-5 border-t border-zinc-800 pt-4' }} text-xs font-bold text-zinc-400">
+                    Distribution
+                    <span class="font-normal text-zinc-600">
+                        · {{ count($credits['cast']) }}{{ $credits['total'] > count($credits['cast']) ? ' sur '.$credits['total'] : '' }} rôle{{ $credits['total'] > 1 ? 's' : '' }}
+                    </span>
+                </p>
+                <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    @foreach($credits['cast'] as $person)
+                    <li class="min-w-0">
+                        <div class="aspect-[2/3] overflow-hidden rounded-xl bg-zinc-950">
+                            @if($person['photo_url'])
+                            <img src="{{ $person['photo_url'] }}" alt="" loading="lazy" class="h-full w-full object-cover">
+                            @else
+                            <div class="grid h-full w-full place-items-center bg-zinc-800/60 text-2xl font-black text-zinc-600" aria-hidden="true">{{ mb_strtoupper(mb_substr($person['name'], 0, 1)) }}</div>
+                            @endif
+                        </div>
+                        <p class="mt-1.5 line-clamp-2 text-xs font-bold leading-snug text-zinc-100">{{ $person['name'] }}</p>
+                        @if($person['character'])
+                        <p class="line-clamp-2 text-[11px] leading-snug text-zinc-500">{{ $person['character'] }}</p>
+                        @endif
+                    </li>
+                    @endforeach
+                </ul>
+                @endif
+                <p class="mt-5 text-[9px] text-zinc-600">Données fournies par TMDB.</p>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 <style>
     [x-cloak] {
