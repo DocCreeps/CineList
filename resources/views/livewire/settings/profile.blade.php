@@ -2,7 +2,7 @@
     <div class="mx-auto max-w-2xl px-4 pb-14 sm:px-8 lg:px-12">
         <div class="border-b border-zinc-800 pb-5">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Paramètres</p>
-            <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Mon compte</h1>
+            <h1 class="font-display mt-1 text-4xl tracking-wide text-zinc-100">Mon compte</h1>
         </div>
 
         <div class="mt-6">

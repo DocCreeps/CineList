@@ -11,16 +11,6 @@ use Illuminate\Support\Facades\DB;
 class ComputeMemberDetail
 {
     /**
-     * Colonnes chargées pour la vue admin d'un membre. `note` (texte libre privé), `plot`,
-     * `actors` et `studio` en sont volontairement absents : l'admin voit la liste et les
-     * statistiques d'un membre, pas ses annotations personnelles.
-     */
-    public const COLUMNS = [
-        'id', 'user_id', 'tmdb_id', 'title', 'year', 'poster_url', 'genre', 'director', 'runtime',
-        'imdb_rating', 'status', 'source', 'priority', 'personal_rating', 'watched_at', 'created_at',
-    ];
-
-    /**
      * Les films d'un membre (chargés ici, ou passés par l'appelant qui les a déjà) et tout ce qu'on
      * en tire : répartition par statut/source/genre, réalisateurs, notes, temps de visionnage.
      * "watched" et "to_rewatch" comptent tous les deux comme déjà visionnés au moins une fois.
@@ -32,7 +22,7 @@ class ComputeMemberDetail
         $items ??= WatchlistItem::query()
             ->withoutGlobalScope('owner')
             ->where('user_id', $memberId)
-            ->get(self::COLUMNS);
+            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
 
         $watched = $items->whereIn('status', ['watched', 'to_rewatch']);
 
@@ -41,6 +31,7 @@ class ComputeMemberDetail
 
         $rated = $watched->whereNotNull('personal_rating');
         $lastWatched = $watched->sortByDesc('watched_at')->first();
+        $toRewatch = $items->where('status', 'to_rewatch');
         $lastActivity = DB::table('sessions')->where('user_id', $memberId)->max('last_activity');
 
         return [
@@ -63,6 +54,12 @@ class ComputeMemberDetail
             'sourceCounts' => [
                 'cinema' => $items->where('source', 'cinema')->count(),
                 'streaming' => $items->where('source', 'streaming')->count(),
+            ],
+            // Où ce membre a vu ses films "à revoir" pour la toute première fois (champ distinct de `source`).
+            'toRewatchCount' => $toRewatch->count(),
+            'toRewatchFirstSeenCounts' => [
+                'cinema' => $toRewatch->where('first_watched_source', 'cinema')->count(),
+                'streaming' => $toRewatch->where('first_watched_source', 'streaming')->count(),
             ],
             'genreBreakdown' => $genreCountsAll->map(fn ($total, $genre) => [
                 'total' => $total,

@@ -6,6 +6,8 @@ use App\Models\WatchlistItem;
 
 class FilterWatchlistItems
 {
+    public function __construct(private WatchlistStatusCounts $statusCounts) {}
+
     /**
      * @param  array<int, string>  $statusFilter  Vide = pas de filtre (tous les statuts).
      * @param  array<int, string>  $sourceFilter  Vide = pas de filtre (toutes les sources).
@@ -57,7 +59,7 @@ class FilterWatchlistItems
         $toWatchItems = $items->where('status', 'to_watch')->values();
         $toRewatchItems = $items->where('status', 'to_rewatch')->values();
 
-        $counts = (new WatchlistStatusCounts)->handle();
+        $counts = $this->statusCounts->handle();
         $sourceCounts = WatchlistItem::query()->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source');
         $staleCount = WatchlistItem::query()->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3))->count();
 

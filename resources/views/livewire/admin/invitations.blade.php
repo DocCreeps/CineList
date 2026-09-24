@@ -2,7 +2,7 @@
     <div class="mx-auto max-w-4xl px-4 pb-14 sm:px-8 lg:px-12">
         <div class="border-b border-zinc-800 pb-5">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Administration</p>
-            <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Codes d'invitation</h1>
+            <h1 class="font-display mt-1 text-4xl tracking-wide text-zinc-100">Codes d'invitation</h1>
             <p class="mt-2 text-sm text-zinc-500">Génère un code à partager manuellement, ou envoie-le directement par e-mail à la personne invitée.</p>
             @include('livewire.admin.partials.tabs')
         </div>

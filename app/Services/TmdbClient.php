@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
+use App\Support\Tmdb\FrenchLocale;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class TmdbClient
 {
@@ -232,84 +232,10 @@ class TmdbClient
     }
 
     /**
-     * Sorties en salles (exploitation limitée ou large) en France sur les deux prochains mois,
-     * triées chronologiquement. Filtre sur `release_date` + `region=FR` plutôt que sur
-     * `primary_release_date` (global, qui ignore la région) — voir withVerifiedFrenchReleaseDates().
-     *
-     * @return array{results: array<int, array<string, mixed>>, error: ?string}
-     */
-    public function upcomingFilms(): array
-    {
-        if (blank(config('services.tmdb.token'))) {
-            return ['results' => [], 'error' => 'La clé TMDB est absente de la configuration.'];
-        }
-
-        $cacheKey = 'tmdb.upcoming.v3.' . now()->toDateString();
-        if ($cached = Cache::get($cacheKey)) {
-            return ['results' => $cached, 'error' => null];
-        }
-
-        try {
-            $start = now()->toDateString();
-            $end = now()->addMonths(2)->toDateString();
-
-            $movies = collect();
-            $maxPages = 6;
-
-            for ($page = 1; $page <= $maxPages; $page++) {
-                $response = $this->client()->get('discover/movie', $this->withAuth([
-                    'language' => 'fr-FR',
-                    'region' => 'FR',
-                    // 2 = sortie en salles limitée, 3 = sortie en salles large
-                    'with_release_type' => '2|3',
-                    'sort_by' => 'release_date.asc',
-                    'release_date.gte' => $start,
-                    'release_date.lte' => $end,
-                    'page' => $page,
-                ]));
-
-                if ($response->failed()) {
-                    Log::warning('TMDB upcoming failed.', ['status' => $response->status(), 'body' => $response->body()]);
-                    break;
-                }
-
-                $data = $response->json();
-                $movies = $movies->merge($data['results'] ?? []);
-
-                if ($page >= ($data['total_pages'] ?? 1)) {
-                    break;
-                }
-            }
-
-            $movies = $this->withVerifiedFrenchReleaseDates($movies->unique('id'), $start, $end);
-
-            $results = $movies->map(function ($movie) {
-                if (empty($movie['id']) || empty($movie['title']) || empty($movie['release_date'])) return null;
-
-                return [
-                    'tmdb_id' => (string) $movie['id'],
-                    'title' => $movie['title'],
-                    'year' => (int) substr($movie['release_date'], 0, 4),
-                    'release_date' => $movie['release_date'],
-                    'poster_url' => isset($movie['poster_path']) ? 'https://image.tmdb.org/t/p/w500' . $movie['poster_path'] : null,
-                    'plot' => $movie['overview'] ?? null,
-                ];
-            })->filter()->unique('tmdb_id')->sortBy('release_date')->values()->all();
-
-            Cache::put($cacheKey, $results, now()->addHours(12));
-
-            return ['results' => $results, 'error' => empty($results) ? 'Aucune sortie prévue sur cette période.' : null];
-        } catch (\Exception $e) {
-            Log::warning('TMDB upcoming failed.', ['message' => $e->getMessage()]);
-            return ['results' => [], 'error' => 'Erreur de connexion à TMDB.'];
-        }
-    }
-
-    /**
      * Sorties en salles (exploitation limitée ou large) en France entre deux dates incluses, avec
-     * le même filtrage « France uniquement » que upcomingFilms() (voir
-     * withVerifiedFrenchReleaseDates()). Sert la page « À venir », qui l'appelle une semaine à la
-     * fois pour garder chaque requête courte. Triées par date de sortie (la plus récente d'abord si $newestFirst),
+     * un filtrage « France uniquement » (voir withVerifiedFrenchReleaseDates()). Sert la page « À
+     * venir », qui l'appelle une semaine à la fois pour garder chaque requête courte. Triées par
+     * date de sortie (la plus récente d'abord si $newestFirst),
      * puis par popularité décroissante pour que les gros films passent avant les sorties confidentielles
      * d'un même jour.
      *
@@ -409,8 +335,8 @@ class TmdbClient
 
     /**
      * Date de sortie en salles de films précis (typiquement ceux de la watchlist), sans passer par
-     * une fenêtre de dates : upcomingFilms() ne voit que les 2 prochains mois (et au plus 120
-     * films), si bien qu'un film annoncé pour dans 4 mois — ou déjà à l'affiche — n'y figurait pas.
+     * une fenêtre de dates : `releasesBetween()` ne couvre qu'une période donnée, si bien qu'un
+     * film annoncé en dehors de cette fenêtre — ou déjà à l'affiche — n'y figurerait pas.
      *
      * Pour chaque film : la prochaine sortie salle française (types 2/3) ou, à défaut, la plus
      * récente déjà passée. Si TMDB ne connaît aucune sortie salle française, on retombe sur la
@@ -482,7 +408,7 @@ class TmdbClient
                     ->take(3)
                     ->implode(', ');
                 $countries = collect($data['production_countries'] ?? [])
-                    ->map(fn ($country) => $this->frenchRegionName($country['iso_3166_1'] ?? '', $country['name'] ?? ''))
+                    ->map(fn ($country) => FrenchLocale::regionName($country['iso_3166_1'] ?? '', $country['name'] ?? ''))
                     ->filter()
                     ->implode(', ');
 
@@ -523,7 +449,7 @@ class TmdbClient
                         : null,
                     'tagline' => filled($data['tagline'] ?? null) ? $data['tagline'] : null,
                     'countries' => $countries ?: null,
-                    'original_language' => $this->frenchLanguageName($data['original_language'] ?? null, $data['spoken_languages'] ?? []),
+                    'original_language' => FrenchLocale::languageName($data['original_language'] ?? null, $data['spoken_languages'] ?? []),
                     'budget' => ($data['budget'] ?? 0) > 0 ? (int) $data['budget'] : null,
                     'revenue' => ($data['revenue'] ?? 0) > 0 ? (int) $data['revenue'] : null,
                     'writers' => $writers ?: null,
@@ -596,43 +522,6 @@ class TmdbClient
         });
 
         return $credits ?? $empty;
-    }
-
-    /** Nom d'un pays en français (« États-Unis ») via l'extension intl ; repli sur le nom fourni par TMDB. */
-    private function frenchRegionName(string $isoCode, string $fallback): string
-    {
-        if ($isoCode !== '' && class_exists(\Locale::class)) {
-            $name = \Locale::getDisplayRegion('-' . $isoCode, 'fr');
-
-            if ($name !== '' && $name !== '-' . $isoCode && strcasecmp($name, $isoCode) !== 0) {
-                return $name;
-            }
-        }
-
-        return $fallback !== '' ? $fallback : $isoCode;
-    }
-
-    /**
-     * Nom de la langue originale en français (« Anglais ») via l'extension intl ; repli sur le nom
-     * anglais de la liste `spoken_languages` de TMDB, puis sur le code ISO en majuscules.
-     *
-     * @param array<int, array<string, mixed>> $spokenLanguages
-     */
-    private function frenchLanguageName(?string $code, array $spokenLanguages): ?string
-    {
-        if (blank($code)) return null;
-
-        if (class_exists(\Locale::class)) {
-            $name = \Locale::getDisplayLanguage($code, 'fr');
-
-            if ($name !== '' && strcasecmp($name, $code) !== 0) {
-                return Str::ucfirst($name);
-            }
-        }
-
-        $spoken = collect($spokenLanguages)->firstWhere('iso_639_1', $code);
-
-        return $spoken['english_name'] ?? $spoken['name'] ?? strtoupper($code);
     }
 
     /**

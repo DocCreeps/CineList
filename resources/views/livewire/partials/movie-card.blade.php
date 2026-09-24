@@ -46,6 +46,26 @@
             <p class="mt-1 text-[11px] font-semibold {{ $item->source === 'streaming' ? 'text-violet-400' : 'text-amber-400' }}">
                 {{ $item->source === 'streaming' ? 'Streaming' : 'Cinéma' }}
             </p>
+            @if ($item->first_watched_source)
+            <p class="mt-0.5 text-[10px] text-zinc-500">1ère fois : {{ $item->first_watched_source === 'streaming' ? 'streaming' : 'cinéma' }}</p>
+            @endif
+
+            <!-- Nombre de fois vu : s'incrémente tout seul à chaque passage en "vu", mais reste corrigeable à la main. -->
+            @if(in_array($item->status, ['watched', 'to_rewatch'], true))
+            <div class="mt-1.5 flex items-center gap-1.5">
+                <span class="text-[10px] uppercase tracking-wide text-zinc-500">Vu</span>
+                <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    value="{{ $item->watch_count }}"
+                    wire:change="setWatchCount({{ $item->id }}, $event.target.value)"
+                    title="Nombre de fois vu (modifiable)"
+                    class="h-6 w-12 rounded-md border border-zinc-800 bg-zinc-950/80 px-1.5 text-center text-[11px] font-bold text-zinc-200 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50"
+                >
+                <span class="text-[10px] text-zinc-500">fois</span>
+            </div>
+            @endif
 
             <!-- Priorité -->
             <div class="mt-2 flex items-center gap-1" role="group" aria-label="Priorité">
@@ -69,6 +89,7 @@
             <div class="flex items-center gap-1" role="group" aria-label="Statut de visionnage">
                 <button wire:click="setStatus({{ $item->id }}, 'to_watch')" title="Marquer à voir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> $item->status === 'to_watch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_watch'])>○</button>
                 <button wire:click="setStatus({{ $item->id }}, 'watched')" title="Marquer comme vu" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'=> $item->status === 'watched', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'watched'])>✓</button>
+                {{-- Toujours une bascule directe, sans rien imposer : le choix cinéma/streaming reste optionnel (ci-dessous). --}}
                 <button wire:click="setStatus({{ $item->id }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50'=> $item->status === 'to_rewatch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_rewatch'])>↺</button>
             </div>
             <button
@@ -82,5 +103,14 @@
                 </svg>
             </button>
         </div>
+
+        @if ($item->status === 'to_rewatch' && ! $item->first_watched_source)
+        {{-- Choix mis en évidence (pas caché derrière un "?") : optionnel, mais explicite sur ce qu'il signifie. --}}
+        <div class="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed border-sky-800/50 bg-sky-950/10 px-2 py-1.5">
+            <span class="text-[10px] leading-tight text-zinc-400">Vu la 1ère fois :</span>
+            <button type="button" wire:click="setStatus({{ $item->id }}, 'to_rewatch', 'cinema')" title="Vu la 1ère fois au cinéma" class="rounded-md bg-zinc-900/80 px-2 py-1 text-[10px] font-bold text-amber-400 transition hover:bg-amber-950/60">🎬 Cinéma</button>
+            <button type="button" wire:click="setStatus({{ $item->id }}, 'to_rewatch', 'streaming')" title="Vu la 1ère fois en streaming" class="rounded-md bg-zinc-900/80 px-2 py-1 text-[10px] font-bold text-violet-400 transition hover:bg-violet-950/60">📺 Streaming</button>
+        </div>
+        @endif
     </div>
 </article>

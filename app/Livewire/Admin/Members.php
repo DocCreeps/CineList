@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Actions\Admin\ComputeMembersOverview;
+use App\Actions\Stats\ComputeCommunityStats;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -49,8 +50,8 @@ class Members extends Component
      * Vue d'ensemble : le détail d'un membre (genres, réalisateurs, films…) vit sur sa propre
      * page, voir MemberShow.
      */
-    public function with(ComputeMembersOverview $overview): array
+    public function with(ComputeMembersOverview $overview, ComputeCommunityStats $communityStats): array
     {
-        return $overview->handle();
+        return $overview->handle($communityStats);
     }
 }

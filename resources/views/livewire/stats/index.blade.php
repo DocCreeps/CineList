@@ -2,8 +2,8 @@
     <div class="mx-auto max-w-7xl px-4 pb-10 sm:px-8 lg:px-12 lg:pb-14">
 
         <div class="border-b border-zinc-800 pb-5">
-            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Bilan</p>
-            <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Mon année ciné</h1>
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Statistiques</p>
+            <h1 class="font-display mt-1 text-4xl tracking-wide text-zinc-100">Bilan</h1>
         </div>
 
         @if($totalWatched === 0 && $toRewatchCount === 0)
@@ -13,147 +13,61 @@
             <p class="mt-1 text-sm text-zinc-500">Vos statistiques apparaîtront ici dès que vous aurez coché vos premiers films.</p>
         </div>
         @else
-        <!-- Cartes de statistiques -->
-        <section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Films vus</p>
-                <p class="mt-1 text-4xl font-black tracking-tight text-zinc-100">{{ $totalWatched }}</p>
-                <p class="mt-1 text-xs text-zinc-500">dont {{ $watchedThisYear }} en {{ now()->year }}.</p>
-            </div>
-            <div class="rounded-2xl border border-amber-800/40 bg-amber-950/20 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-500/80">Note moyenne</p>
-                <p class="mt-1 text-4xl font-black tracking-tight text-amber-400">{{ $averageRating ?? '—' }}</p>
-                <p class="mt-1 text-xs text-zinc-500">sur les films notés (/5).</p>
-            </div>
-            <div class="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-500/80">Genre favori</p>
-                <p class="mt-1 truncate text-2xl font-black tracking-tight text-sky-400">{{ $topGenre ?? '—' }}</p>
-                <p class="mt-1 text-xs text-zinc-500">{{ $topGenreCount ? $topGenreCount . ' film' . ($topGenreCount > 1 ? 's' : '') : 'Pas assez de données.' }}</p>
-            </div>
-            <div class="rounded-2xl border border-violet-800/40 bg-violet-950/20 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-500/80">Réalisateur favori</p>
-                <p class="mt-1 truncate text-2xl font-black tracking-tight text-violet-400">{{ $topDirector ?? '—' }}</p>
-                <p class="mt-1 text-xs text-zinc-500">{{ $topDirectorCount ? $topDirectorCount . ' film' . ($topDirectorCount > 1 ? 's' : '') : 'Pas assez de données.' }}</p>
-            </div>
-        </section>
-
-        <!-- Studio et film préférés -->
-        <section class="mt-4 grid gap-4 sm:grid-cols-2">
-            <div class="rounded-2xl border border-emerald-800/40 bg-emerald-950/20 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/80">Studio favori</p>
-                <p class="mt-1 truncate text-2xl font-black tracking-tight text-emerald-400">{{ $topStudio ?? '—' }}</p>
-                <p class="mt-1 text-xs text-zinc-500">{{ $topStudioCount ? $topStudioCount . ' film' . ($topStudioCount > 1 ? 's' : '') : 'Pas assez de données.' }}</p>
-            </div>
-            <div class="flex items-center gap-4 rounded-2xl border border-rose-800/40 bg-rose-950/20 p-6">
-                @if($favoriteFilm)
-                <div class="h-24 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
-                    @if($favoriteFilm->poster_url)
-                    <img src="{{ $favoriteFilm->poster_url }}" alt="Affiche de {{ $favoriteFilm->title }}" class="h-full w-full object-cover">
-                    @else
-                    <div class="grid h-full w-full place-items-center p-1 text-center text-[9px] text-zinc-700">{{ $favoriteFilm->title }}</div>
-                    @endif
-                </div>
-                @endif
-                <div class="min-w-0">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500/80">Film préféré</p>
-                    <p class="mt-1 truncate text-2xl font-black tracking-tight text-rose-400" title="{{ $favoriteFilm?->title }}">{{ $favoriteFilm?->title ?? '—' }}</p>
-                    @if($favoriteFilm)
-                    <p class="mt-1 text-xs font-semibold text-amber-400">
-                        {{ str_repeat('★', $favoriteFilm->personal_rating) }}<span class="text-zinc-700">{{ str_repeat('★', 5 - $favoriteFilm->personal_rating) }}</span>
-                        @if($favoriteFilm->year)<span class="ml-1 font-normal text-zinc-500">· {{ $favoriteFilm->year }}</span>@endif
-                    </p>
-                    @else
-                    <p class="mt-1 text-xs text-zinc-500">Notez un film vu pour le voir ici.</p>
-                    @endif
-                </div>
-            </div>
-        </section>
-
-        <section class="mt-4 grid gap-4 sm:grid-cols-3">
-            <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Vus au cinéma</p>
-                <p class="mt-1 text-3xl font-black tracking-tight text-amber-400">{{ $cinemaCount }}</p>
-            </div>
-            <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Vus en streaming</p>
-                <p class="mt-1 text-3xl font-black tracking-tight text-violet-400">{{ $streamingCount }}</p>
-            </div>
-            <div class="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-6">
-                <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-500/80">À revoir</p>
-                <p class="mt-1 text-3xl font-black tracking-tight text-sky-400">{{ $toRewatchCount }}</p>
-                <p class="mt-1 text-xs text-zinc-500">non comptés dans les films vus.</p>
-            </div>
-        </section>
-
-        <!-- Frise chronologique -->
-        <section class="mt-10">
-            <h2 class="border-b border-zinc-800 pb-3 font-serif text-xl font-normal text-zinc-100">Historique</h2>
-            <div class="mt-6 space-y-8">
-                @foreach($timeline as $month => $group)
-                <div>
-                    <h3 class="text-[11px] font-bold uppercase tracking-widest text-amber-400">{{ $month }}</h3>
-                    <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach($group as $item)
-                        <div class="flex gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
-                            <div class="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
-                                @if($item->poster_url)
-                                <img src="{{ $item->poster_url }}" alt="Affiche de {{ $item->title }}" class="h-full w-full object-cover">
-                                @else
-                                <div class="grid h-full w-full place-items-center text-[9px] text-zinc-700">N/A</div>
-                                @endif
-                            </div>
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-bold text-zinc-100">{{ $item->title }}</p>
-                                <p class="mt-0.5 text-xs text-zinc-500">{{ $item->watched_at->translatedFormat('d F Y') }}</p>
-                                @if($item->personal_rating)
-                                <p class="mt-1 text-xs font-semibold text-amber-400">
-                                    {{ str_repeat('★', $item->personal_rating) }}<span class="text-zinc-700">{{ str_repeat('★', 5 - $item->personal_rating) }}</span>
-                                </p>
-                                @endif
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </section>
-
-        <!-- Films à revoir : jamais mélangés à l'historique des films vus ci-dessus -->
-        @if($toRewatchCount > 0)
-        <section class="mt-10">
-            <h2 class="border-b border-zinc-800 pb-3 font-serif text-xl font-normal text-zinc-100">Films à revoir</h2>
-            <div class="mt-6 space-y-8">
-                @foreach($toRewatchTimeline as $month => $group)
-                <div>
-                    <h3 class="text-[11px] font-bold uppercase tracking-widest text-sky-400">{{ $month }}</h3>
-                    <div class="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach($group as $item)
-                        <div class="flex gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/80 p-3">
-                            <div class="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-zinc-950">
-                                @if($item->poster_url)
-                                <img src="{{ $item->poster_url }}" alt="Affiche de {{ $item->title }}" class="h-full w-full object-cover">
-                                @else
-                                <div class="grid h-full w-full place-items-center text-[9px] text-zinc-700">N/A</div>
-                                @endif
-                            </div>
-                            <div class="min-w-0">
-                                <p class="truncate text-sm font-bold text-zinc-100">{{ $item->title }}</p>
-                                <p class="mt-0.5 text-xs text-zinc-500">Vu le {{ $item->watched_at->translatedFormat('d F Y') }}</p>
-                                @if($item->personal_rating)
-                                <p class="mt-1 text-xs font-semibold text-amber-400">
-                                    {{ str_repeat('★', $item->personal_rating) }}<span class="text-zinc-700">{{ str_repeat('★', 5 - $item->personal_rating) }}</span>
-                                </p>
-                                @endif
-                            </div>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </section>
+        <!-- Année en cours (à gauche) et total (à côté) : chacun avec ses chiffres, ses tops et ses films préférés -->
+        <div class="mt-8 grid items-start gap-10 xl:grid-cols-2 xl:gap-8">
+            <x-personal-bilan
+                scope="year"
+                eyebrow="Année en cours"
+                :title="'Mon année ciné '.now()->year"
+                watched-hint="depuis le 1er janvier."
+                :stats="$yearStats"
+            />
+            <x-personal-bilan
+                scope="general"
+                eyebrow="Total"
+                title="Depuis le début"
+                watched-hint="au total."
+                :stats="$generalStats"
+            />
+        </div>
         @endif
+
+        <!-- Bilan collectif : replié par défaut. Agrégé, tous membres confondus, sans détail nominatif —
+             ce détail (liste des comptes) reste réservé à la page Admin > Membres. -->
+        <section class="mt-10 rounded-2xl border border-zinc-800 bg-zinc-900/40" x-data="{ open: false }">
+            <button
+                type="button"
+                x-on:click="open = ! open"
+                x-bind:aria-expanded="open.toString()"
+                class="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+            >
+                <span>
+                    <span class="block text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Communauté</span>
+                    <span class="font-display mt-1 block text-2xl tracking-wide text-zinc-100">Bilan collectif</span>
+                    <span class="mt-1 block text-xs text-zinc-500">Tous les membres de Cinélist confondus.</span>
+                </span>
+                <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 shrink-0 text-zinc-500 transition-transform duration-200" x-bind:class="open ? 'rotate-180' : ''" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
+            </button>
+            <div x-show="open" x-cloak x-transition.opacity.duration.200ms class="border-t border-zinc-800 px-5 pb-5 pt-5">
+                <x-community-stats
+                    :total-films="$community['totalFilms']"
+                    :watched-total="$community['watchedTotal']"
+                    :genre-counts="$community['genreCounts']"
+                    :top-genre-count="$community['topGenreCount']"
+                    :top-directors="$community['topDirectors']"
+                    :top-studios="$community['topStudios']"
+                    :favorite-films="$community['favoriteFilms']"
+                    :most-anticipated="$community['mostAnticipated']"
+                    :to-rewatch-total="$community['toRewatchTotal']"
+                    :to-rewatch-first-seen-counts="$community['toRewatchFirstSeenCounts']"
+                />
+            </div>
+        </section>
+
+        {{-- Historique des films vus : replié par défaut, navigation mois par mois (voir x-month-slider).
+             Les films « à revoir » n'apparaissent pas sur cette page (uniquement leur compteur). --}}
+        @if($totalWatched > 0)
+        <x-month-slider class="mt-4" title="Historique" accent="amber" :timeline="$timeline" />
         @endif
     </div>
 </main>

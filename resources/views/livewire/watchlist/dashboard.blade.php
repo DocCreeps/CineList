@@ -5,7 +5,7 @@
         <div class="flex flex-col gap-4 border-b border-zinc-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Ma sélection</p>
-                <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Films à voir & à revoir</h1>
+                <h1 class="font-display mt-1 text-4xl tracking-wide text-zinc-100">Films à voir & à revoir</h1>
             </div>
             <div class="flex items-center gap-2.5 self-start sm:self-auto">
                 @if($counts['to_watch'] > 0)

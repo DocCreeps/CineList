@@ -11,7 +11,7 @@ use Livewire\Component;
 
 /**
  * Fiche d'un membre (admin) : statistiques détaillées et liste de ses films, en lecture seule.
- * Les notes personnelles du membre ne sont jamais chargées (voir ComputeMemberDetail::COLUMNS).
+ * Les notes personnelles du membre ne sont jamais chargées (voir WatchlistItem::ADMIN_SAFE_COLUMNS).
  */
 #[Layout('layouts.app')]
 class MemberShow extends Component
@@ -100,7 +100,7 @@ class MemberShow extends Component
         $all = WatchlistItem::query()
             ->withoutGlobalScope('owner')
             ->where('user_id', $member->id)
-            ->get(ComputeMemberDetail::COLUMNS);
+            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
 
         $detail = $computeDetail->handle($member->id, $all);
 

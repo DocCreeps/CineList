@@ -13,7 +13,7 @@
     <div class="mx-auto max-w-6xl px-4 pb-14 sm:px-8 lg:px-12">
         <div class="border-b border-zinc-800 pb-5">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-400">Administration</p>
-            <h1 class="mt-1 font-serif text-3xl font-normal text-zinc-100">Fiche membre</h1>
+            <h1 class="font-display mt-1 text-4xl tracking-wide text-zinc-100">Fiche membre</h1>
             @include('livewire.admin.partials.tabs')
         </div>
 
@@ -99,6 +99,16 @@
             </div>
 
             <div class="space-y-4">
+                <div class="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-6">
+                    <h2 class="text-sm font-bold uppercase tracking-wide text-sky-500/80">À revoir</h2>
+                    @if ($detail['toRewatchCount'] === 0)
+                    <p class="mt-3 text-sm text-zinc-500">Aucun film marqué « à revoir ».</p>
+                    @else
+                    <p class="mt-1 text-3xl font-black tracking-tight text-sky-400">{{ $detail['toRewatchCount'] }}</p>
+                    <p class="mt-1 text-xs text-zinc-500">1ère fois : {{ $detail['toRewatchFirstSeenCounts']['cinema'] }} cinéma · {{ $detail['toRewatchFirstSeenCounts']['streaming'] }} streaming</p>
+                    @endif
+                </div>
+
                 <div class="rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6">
                     <h2 class="text-sm font-bold uppercase tracking-wide text-zinc-300">Réalisateurs les plus vus</h2>
                     @if ($detail['directors']->isEmpty())

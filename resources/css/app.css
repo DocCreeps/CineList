@@ -15,3 +15,70 @@
 /* Le bouton "afficher / masquer" maison (x-password-input) remplace l'œil natif d'Edge. */
 input::-ms-reveal,
 input::-ms-clear { display: none; }
+
+/*
+ * Ambiance « salle obscure » : un grain de pellicule très discret et une vignette aux bords de
+ * l'écran, en fixed derrière tout le contenu (z-index négatif, pointer-events désactivés). Volontairement
+ * subtil — l'idée est de donner de la texture et de la profondeur au fond quasi-noir, pas de
+ * distraire. Se désactive avec prefers-reduced-motion pour ne garder que la texture statique.
+ *
+ * Placé dans @layer base : en Tailwind v4, une règle hors @layer passe toujours devant les
+ * utilitaires (peu importe la spécificité). Sans ce @layer, "body > *" (position: relative)
+ * écrasait silencieusement les classes .fixed/.sticky (modale de confirmation, toasts, en-tête
+ * collant), qui se retrouvaient rendues dans le flux normal de la page — en bas — au lieu d'être
+ * superposées à l'écran.
+ */
+@layer base {
+    body {
+        position: relative;
+    }
+
+    body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.035;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.55) 130%);
+    }
+
+    body > * {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marquee-pulse { animation: none !important; }
+}
+
+@keyframes marquee-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+}
+
+@layer components {
+    /*
+     * Carte standard, sobre : le motif « bordure zinc + fond zinc-900 translucide » répété partout
+     * dans l'app, factorisé ici pour éviter de retaper la même chaîne de classes à chaque endroit.
+     */
+    .cine-card {
+        @apply rounded-2xl border border-zinc-800/80 bg-zinc-900/60;
+    }
+
+    /* Halo doré discret et lent, façon ampoule de marquise — utilisé sur le logo, jamais sur du texte. */
+    .marquee-pulse {
+        animation: marquee-pulse 2.8s ease-in-out infinite;
+    }
+}

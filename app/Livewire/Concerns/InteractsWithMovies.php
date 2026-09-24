@@ -4,6 +4,7 @@ namespace App\Livewire\Concerns;
 
 use App\Actions\Watchlist\AddCollectionToWatchlist;
 use App\Actions\Watchlist\AddMovieToWatchlist;
+use App\Actions\Watchlist\UpdateWatchlistItemStatus;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
@@ -133,6 +134,49 @@ trait InteractsWithMovies
         if ($this->selectedMovie && ($this->selectedMovie['item_id'] ?? null) === $id) {
             $this->selectedMovie['personal_rating'] = $newRating;
         }
+    }
+
+    /**
+     * Change le statut d'un film (à voir / vu / à revoir), y compris depuis la modale de détails
+     * — d'où le fait que cette méthode vit dans ce trait partagé plutôt que dans le seul Dashboard.
+     * `$firstWatchedSource` (cinéma/streaming) est optionnel : voir UpdateWatchlistItemStatus.
+     */
+    public function setStatus(int $id, string $status, UpdateWatchlistItemStatus $action, ?string $firstWatchedSource = null): void
+    {
+        $item = WatchlistItem::findOrFail($id);
+        $changed = $item->status !== $status;
+
+        $action->handle($item, $status, $firstWatchedSource);
+
+        // Recliquer sur le statut déjà actif ne change rien : pas de notification.
+        if ($changed) {
+            $this->dispatch('toast', message: match ($status) {
+                'to_watch' => "« {$item->title} » remis dans « À voir ».",
+                'watched' => "« {$item->title} » marqué comme vu.",
+                'to_rewatch' => "« {$item->title} » ajouté à « À revoir ».",
+            });
+        }
+
+        // Garde la modale ouverte synchronisée si elle affiche ce même film (statut, source de la
+        // 1ère fois, et nombre de fois vu, qui peut s'être incrémenté automatiquement).
+        if ($this->selectedMovie && ($this->selectedMovie['item_id'] ?? null) === $id) {
+            $item->refresh();
+            $this->selectedMovie['status'] = $item->status;
+            $this->selectedMovie['first_watched_source'] = $item->first_watched_source;
+        }
+    }
+
+    /**
+     * Correction manuelle du nombre de fois vu (le compteur s'incrémente sinon automatiquement à
+     * chaque passage en "vu" — voir UpdateWatchlistItemStatus). Bornée à 0-999 pour éviter une
+     * saisie farfelue depuis le champ numérique de la carte film.
+     */
+    public function setWatchCount(int $id, int $watchCount): void
+    {
+        $watchCount = max(0, min(999, $watchCount));
+
+        $item = WatchlistItem::findOrFail($id);
+        $item->update(['watch_count' => $watchCount]);
     }
 
     public function closeModal(): void

@@ -164,23 +164,6 @@ class Dashboard extends Component
             : [...$list, $value];
     }
 
-    public function setStatus(int $id, string $status, UpdateWatchlistItemStatus $action): void
-    {
-        $item = WatchlistItem::findOrFail($id);
-        $changed = $item->status !== $status;
-
-        $action->handle($item, $status);
-
-        // Recliquer sur le statut déjà actif ne change rien : pas de notification.
-        if ($changed) {
-            $this->dispatch('toast', message: match ($status) {
-                'to_watch' => "« {$item->title} » remis dans « À voir ».",
-                'watched' => "« {$item->title} » marqué comme vu.",
-                'to_rewatch' => "« {$item->title} » ajouté à « À revoir ».",
-            });
-        }
-    }
-
     public function setPriority(int $id, int $priority): void
     {
         abort_unless(in_array($priority, [1, 2, 3], true), 422);

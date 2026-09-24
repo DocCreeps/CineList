@@ -30,8 +30,9 @@ class AddMovieToWatchlist
             ...$movie,
             'source' => $source,
             'status' => $status,
-            // "Déjà vue"/"Revoir" sont ajoutés déjà vus, donc horodatés immédiatement.
+            // "Déjà vue"/"Revoir" sont ajoutés déjà vus, donc horodatés et comptés immédiatement.
             'watched_at' => $status !== 'to_watch' ? now() : null,
+            'watch_count' => $status !== 'to_watch' ? 1 : 0,
         ]);
 
         return ['added' => true, 'message' => 'Film ajouté à votre liste.'];

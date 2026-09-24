@@ -14,7 +14,7 @@
 
 <header class="flex flex-wrap items-center justify-between gap-4 py-4 lg:py-5">
     <a href="{{ route('home') }}" class="group flex items-center gap-3.5" wire:navigate>
-        <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 text-xl font-black text-white shadow-lg shadow-amber-950/40 ring-1 ring-amber-400/30 transition-transform duration-300 group-hover:scale-105">🍿</span>
+        <span class="marquee-pulse grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 text-xl font-black text-white shadow-lg shadow-amber-950/40 ring-1 ring-amber-400/30 transition-transform duration-300 group-hover:scale-105">🍿</span>
         <span>
             <span class="block text-2xl font-black tracking-wider uppercase text-zinc-100 group-hover:text-amber-400 transition-colors">Cinélist</span>
             <span class="block text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Watch & Rewatch</span>

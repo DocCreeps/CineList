@@ -182,6 +182,28 @@
                 </div>
                 @endif
 
+                @if(isset($selectedMovie['item_id']))
+                <div class="mt-4 border-t border-zinc-800 pt-4">
+                    <p class="mb-1.5 text-xs font-bold text-zinc-400">Statut</p>
+                    <div class="flex items-center gap-2" role="group" aria-label="Statut de visionnage">
+                        <button wire:click="setStatus({{ $selectedMovie['item_id'] }}, 'to_watch')" title="Marquer à voir" @class(['grid h-8 w-8 place-items-center rounded-lg text-base font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50' => $selectedMovie['status'] === 'to_watch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $selectedMovie['status'] !== 'to_watch'])>○</button>
+                        <button wire:click="setStatus({{ $selectedMovie['item_id'] }}, 'watched')" title="Marquer comme vu" @class(['grid h-8 w-8 place-items-center rounded-lg text-base font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50' => $selectedMovie['status'] === 'watched', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $selectedMovie['status'] !== 'watched'])>✓</button>
+                        <button wire:click="setStatus({{ $selectedMovie['item_id'] }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-8 w-8 place-items-center rounded-lg text-base font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50' => $selectedMovie['status'] === 'to_rewatch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $selectedMovie['status'] !== 'to_rewatch'])>↺</button>
+                    </div>
+
+                    @if ($selectedMovie['status'] === 'to_rewatch' && empty($selectedMovie['first_watched_source'] ?? null))
+                    {{-- Choix optionnel, comme sur la carte film : ne bloque pas la bascule. --}}
+                    <div class="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed border-sky-800/50 bg-sky-950/10 px-2 py-1.5">
+                        <span class="text-[10px] leading-tight text-zinc-400">Vu la 1ère fois :</span>
+                        <button type="button" wire:click="setStatus({{ $selectedMovie['item_id'] }}, 'to_rewatch', 'cinema')" title="Vu la 1ère fois au cinéma" class="rounded-md bg-zinc-900/80 px-2 py-1 text-[10px] font-bold text-amber-400 transition hover:bg-amber-950/60">🎬 Cinéma</button>
+                        <button type="button" wire:click="setStatus({{ $selectedMovie['item_id'] }}, 'to_rewatch', 'streaming')" title="Vu la 1ère fois en streaming" class="rounded-md bg-zinc-900/80 px-2 py-1 text-[10px] font-bold text-violet-400 transition hover:bg-violet-950/60">📺 Streaming</button>
+                    </div>
+                    @elseif (! empty($selectedMovie['first_watched_source'] ?? null))
+                    <p class="mt-1.5 text-[10px] text-zinc-500">1ère fois : {{ $selectedMovie['first_watched_source'] === 'streaming' ? 'streaming' : 'cinéma' }}</p>
+                    @endif
+                </div>
+                @endif
+
                 @if(isset($selectedMovie['item_id']) && in_array($selectedMovie['status'] ?? null, ['watched', 'to_rewatch'], true))
                 <div class="mt-4 border-t border-zinc-800 pt-4">
                     <p class="mb-1.5 text-xs font-bold text-zinc-400">Votre note</p>
