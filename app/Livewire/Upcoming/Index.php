@@ -116,8 +116,7 @@ class Index extends Component
 
         // Films déjà présents dans la watchlist (quel que soit le statut), pour que la vue grise la
         // carte et remplace les boutons d'ajout par un badge de statut — comme sur la recherche.
-        $inList = WatchlistItem::whereIn('tmdb_id', collect($visible)->pluck('tmdb_id'))
-            ->pluck('status', 'tmdb_id');
+        $inList = WatchlistItem::statusesByTmdbId(collect($visible)->pluck('tmdb_id'));
 
         $keys = array_keys($weeks);
         $index = array_search($selected->toDateString(), $keys, true);

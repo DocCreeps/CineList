@@ -20,9 +20,9 @@ class ComputeMemberDetail
     public function handle(int $memberId, ?Collection $items = null): array
     {
         $items ??= WatchlistItem::query()
-            ->withoutGlobalScope('owner')
+            ->adminSafe()
             ->where('user_id', $memberId)
-            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
+            ->get();
 
         $watched = $items->whereIn('status', ['watched', 'to_rewatch']);
 

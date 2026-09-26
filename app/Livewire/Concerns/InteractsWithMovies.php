@@ -49,7 +49,7 @@ trait InteractsWithMovies
             ? ['id' => $fetched['collection_id'], 'name' => $fetched['collection_name']]
             : null;
 
-        $item = WatchlistItem::where('tmdb_id', $tmdbId)->first();
+        $item = WatchlistItem::whereTmdbId($tmdbId)->first();
         if ($item) {
             $this->selectedMovie = [
                 'tmdb_id' => $tmdbId,
@@ -75,6 +75,7 @@ trait InteractsWithMovies
                 'note' => $item->note,
                 'status' => $item->status,
                 'personal_rating' => $item->personal_rating,
+                'watch_count' => $item->watch_count,
             ];
             $this->showModal = true;
             return;
@@ -163,19 +164,25 @@ trait InteractsWithMovies
             $item->refresh();
             $this->selectedMovie['status'] = $item->status;
             $this->selectedMovie['first_watched_source'] = $item->first_watched_source;
+            $this->selectedMovie['watch_count'] = $item->watch_count;
         }
     }
 
     /**
      * Correction manuelle du nombre de fois vu (le compteur s'incrémente sinon automatiquement à
      * chaque passage en "vu" — voir UpdateWatchlistItemStatus). Bornée à 0-999 pour éviter une
-     * saisie farfelue depuis le champ numérique de la carte film.
+     * saisie farfelue depuis le champ numérique de la carte film. Refusée une fois le compteur
+     * verrouillé (voir WatchlistItem::watchCountLocked()) : le champ est alors normalement caché
+     * côté vue, ceci n'est qu'un filet de sécurité.
      */
     public function setWatchCount(int $id, int $watchCount): void
     {
-        $watchCount = max(0, min(999, $watchCount));
-
         $item = WatchlistItem::findOrFail($id);
+        if ($item->watchCountLocked()) {
+            return;
+        }
+
+        $watchCount = max(0, min(999, $watchCount));
         $item->update(['watch_count' => $watchCount]);
     }
 

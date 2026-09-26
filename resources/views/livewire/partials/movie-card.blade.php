@@ -50,10 +50,14 @@
             <p class="mt-0.5 text-[10px] text-zinc-500">1ère fois : {{ $item->first_watched_source === 'streaming' ? 'streaming' : 'cinéma' }}</p>
             @endif
 
-            <!-- Nombre de fois vu : s'incrémente tout seul à chaque passage en "vu", mais reste corrigeable à la main. -->
+            <!-- Nombre de fois vu : s'incrémente tout seul à chaque passage en "vu". Reste corrigeable
+                 à la main tant qu'aucun vrai revisionnage n'a eu lieu (voir WatchlistItem::watchCountLocked()). -->
             @if(in_array($item->status, ['watched', 'to_rewatch'], true))
             <div class="mt-1.5 flex items-center gap-1.5">
                 <span class="text-[10px] uppercase tracking-wide text-zinc-500">Vu</span>
+                @if ($item->watchCountLocked())
+                <span title="Nombre de fois vu (verrouillé après un revisionnage)" class="grid h-6 w-12 place-items-center rounded-md border border-zinc-800/60 bg-zinc-950/40 text-[11px] font-bold text-zinc-400">{{ $item->watch_count }}</span>
+                @else
                 <input
                     type="number"
                     min="0"
@@ -63,6 +67,7 @@
                     title="Nombre de fois vu (modifiable)"
                     class="h-6 w-12 rounded-md border border-zinc-800 bg-zinc-950/80 px-1.5 text-center text-[11px] font-bold text-zinc-200 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50"
                 >
+                @endif
                 <span class="text-[10px] text-zinc-500">fois</span>
             </div>
             @endif
@@ -87,7 +92,12 @@
 
         <div class="mt-4 flex items-center justify-between pt-3 border-t border-zinc-800/80">
             <div class="flex items-center gap-1" role="group" aria-label="Statut de visionnage">
-                <button wire:click="setStatus({{ $item->id }}, 'to_watch')" title="Marquer à voir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> $item->status === 'to_watch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_watch'])>○</button>
+                <button
+                    wire:click="setStatus({{ $item->id }}, 'to_watch')"
+                    @disabled($item->alreadyWatched())
+                    title="{{ $item->alreadyWatched() ? 'Déjà vu : ne peut plus repasser en à voir' : 'Marquer à voir' }}"
+                    @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> $item->status === 'to_watch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_watch', 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-zinc-600' => $item->alreadyWatched()])
+                >○</button>
                 <button wire:click="setStatus({{ $item->id }}, 'watched')" title="Marquer comme vu" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'=> $item->status === 'watched', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'watched'])>✓</button>
                 {{-- Toujours une bascule directe, sans rien imposer : le choix cinéma/streaming reste optionnel (ci-dessous). --}}
                 <button wire:click="setStatus({{ $item->id }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50'=> $item->status === 'to_rewatch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_rewatch'])>↺</button>

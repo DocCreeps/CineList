@@ -2,7 +2,9 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Models\Movie;
 use App\Models\WatchlistItem;
+use Illuminate\Database\Eloquent\Builder;
 
 class FilterWatchlistItems
 {
@@ -27,22 +29,24 @@ class FilterWatchlistItems
         $query = WatchlistItem::query()
             ->when(! empty($statusFilter), fn ($q) => $q->whereIn('status', $statusFilter))
             ->when(! empty($sourceFilter), fn ($q) => $q->whereIn('source', $sourceFilter))
-            ->when($genreFilter !== '', fn ($q) => $q->where('genre', 'like', '%'.$genreFilter.'%'))
-            ->when($directorFilter !== '', fn ($q) => $q->where('director', $directorFilter))
-            ->when($studioFilter !== '', fn ($q) => $q->where('studio', 'like', '%'.$studioFilter.'%'))
-            ->when($minYear !== null, fn ($q) => $q->where('year', '>=', $minYear))
-            ->when($maxYear !== null, fn ($q) => $q->where('year', '<=', $maxYear))
+            // Genre, réalisateur, studio, année et titre sont des champs du film (table `movies`).
+            ->when($genreFilter !== '', fn ($q) => $q->whereMovie(fn (Builder $m) => $m->where('genre', 'like', '%'.$genreFilter.'%')))
+            ->when($directorFilter !== '', fn ($q) => $q->whereMovie(fn (Builder $m) => $m->where('director', $directorFilter)))
+            ->when($studioFilter !== '', fn ($q) => $q->whereMovie(fn (Builder $m) => $m->where('studio', 'like', '%'.$studioFilter.'%')))
+            ->when($minYear !== null, fn ($q) => $q->whereMovie(fn (Builder $m) => $m->where('year', '>=', $minYear)))
+            ->when($maxYear !== null, fn ($q) => $q->whereMovie(fn (Builder $m) => $m->where('year', '<=', $maxYear)))
+            // La recherche porte sur le titre (film) OU sur la note privée du membre (item).
             ->when($searchQuery !== '', fn ($q) => $q->where(
-                fn ($qq) => $qq->where('title', 'like', '%'.$searchQuery.'%')
+                fn ($qq) => $qq->whereMovie(fn (Builder $m) => $m->where('title', 'like', '%'.$searchQuery.'%'))
                     ->orWhere('note', 'like', '%'.$searchQuery.'%')
             ))
             ->when($staleOnly, fn ($q) => $q->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3)));
 
         match ($sortBy) {
             'added_desc' => $query->latest(),
-            'year_desc' => $query->orderByDesc('year'),
-            'rating_desc' => $query->orderByDesc('imdb_rating'),
-            'alpha' => $query->orderBy('title'),
+            'year_desc' => $query->orderByMovie('year', 'desc'),
+            'rating_desc' => $query->orderByMovie('imdb_rating', 'desc'),
+            'alpha' => $query->orderByMovie('title'),
             default => $query->orderBy('priority')->latest(),
         };
 
@@ -63,8 +67,9 @@ class FilterWatchlistItems
         $sourceCounts = WatchlistItem::query()->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source');
         $staleCount = WatchlistItem::query()->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3))->count();
 
-        // Seules les colonnes utiles aux filtres, pas des WatchlistItem complets.
-        $filterFields = WatchlistItem::query()->select(['genre', 'director', 'studio'])->get();
+        // Seules les colonnes utiles aux filtres, lues sur les fiches des films de la liste du
+        // membre (le scope `owner` de WatchlistItem s'applique dans `whereHas`).
+        $filterFields = Movie::query()->whereHas('watchlistItems')->get(['genre', 'director', 'studio']);
 
         return [
             'items' => $items,

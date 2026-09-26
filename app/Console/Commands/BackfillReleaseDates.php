@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
-use App\Models\WatchlistItem;
+use App\Models\Movie;
 use App\Services\TmdbClient;
 use Illuminate\Console\Command;
 
 /**
- * Renseigne `release_date` pour les films ajoutés avant l'introduction de cette colonne
- * (migration 2026_09_23_130000). Sans cette date, un film "à voir" ne peut pas être identifié
+ * Renseigne `release_date` pour les fiches de films (table `movies`) ajoutées avant l'introduction
+ * de cette colonne (migration 2026_09_23_130000). Une seule requête TMDB par film, quel que soit le
+ * nombre de membres qui l'ont dans leur liste. Sans cette date, un film "à voir" ne peut pas être identifié
  * comme "pas encore sorti" (le champ `year` seul ne suffit pas : un film sorti en janvier de
  * l'année en cours doit compter comme déjà sorti) — voir App\Actions\Stats\ComputeCommunityStats.
  */
@@ -20,29 +21,29 @@ class BackfillReleaseDates extends Command
 
     public function handle(TmdbClient $tmdb): int
     {
-        $items = WatchlistItem::whereNull('release_date')->get();
+        $movies = Movie::whereNull('release_date')->get();
 
-        if ($items->isEmpty()) {
+        if ($movies->isEmpty()) {
             $this->info('Rien à faire : tous les films ont déjà une date de sortie.');
 
             return self::SUCCESS;
         }
 
-        $this->info("{$items->count()} film(s) sans date de sortie à mettre à jour.");
+        $this->info("{$movies->count()} film(s) sans date de sortie à mettre à jour.");
 
         $updated = 0;
         $failed = 0;
 
-        $this->withProgressBar($items, function (WatchlistItem $item) use ($tmdb, &$updated, &$failed): void {
-            $movie = $tmdb->find($item->tmdb_id);
+        $this->withProgressBar($movies, function (Movie $movie) use ($tmdb, &$updated, &$failed): void {
+            $details = $tmdb->find($movie->tmdb_id);
 
-            if (! $movie || empty($movie['release_date'])) {
+            if (! $details || empty($details['release_date'])) {
                 $failed++;
 
                 return;
             }
 
-            $item->update(['release_date' => $movie['release_date']]);
+            $movie->update(['release_date' => $details['release_date']]);
             $updated++;
         });
 

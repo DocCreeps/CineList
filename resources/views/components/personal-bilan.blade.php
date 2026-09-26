@@ -9,11 +9,19 @@
 ])
 
 {{--
-    Bloc de bilan personnel : 7 chiffres clés, top 3 réalisateurs, top 3 studios et films préférés.
-    Utilisé deux fois sur la page Bilan, côte à côte : « année en cours » et « stats générales ».
+    Bloc de bilan personnel : chiffres clés, top 3 genres, top 3 réalisateurs, top 3 studios et
+    films préférés. Utilisé deux fois sur la page Bilan, côte à côte : « année en cours » et
+    « stats générales ».
 --}}
 @php
     $podiums = [
+        [
+            'title' => 'Top 3 genres',
+            'entries' => $stats['topGenres'],
+            'card' => 'border-sky-800/40 bg-sky-950/20',
+            'label' => 'text-sky-500/80',
+            'name' => 'text-sky-400',
+        ],
         [
             'title' => 'Top 3 réalisateurs',
             'entries' => $stats['topDirectors'],
@@ -38,7 +46,7 @@
 
     <x-personal-stat-cards class="mt-6" :stats="$stats" :watched-hint="$watchedHint" />
 
-    <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
+    <div class="mt-3 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
         @foreach ($podiums as $podium)
         <div class="rounded-2xl border {{ $podium['card'] }} p-5">
             <p class="text-[10px] font-bold uppercase tracking-[0.2em] {{ $podium['label'] }}">{{ $podium['title'] }}</p>
@@ -60,6 +68,6 @@
         @endforeach
     </div>
 
-    {{-- Films préférés sous 3 angles (note + à revoir / à revoir seul / note seule) : voir Favorites::filmsForUser() --}}
+    {{-- Films préférés sous 2 angles (nb de vues seul / note seule) : voir Favorites::filmsForUser() --}}
     <x-favorite-films-carousel class="mt-3" :favorite-films="$stats['favoriteFilms']" mode="personal" :scope="$scope" />
 </section>

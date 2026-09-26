@@ -7,8 +7,10 @@
     'topStudios',
     'favoriteFilms',
     'mostAnticipated' => null,
-    'toRewatchTotal' => 0,
-    'toRewatchFirstSeenCounts' => ['cinema' => 0, 'streaming' => 0],
+    // Vus au cinéma / en streaming, tous membres confondus (films actuellement "watched" uniquement)
+    // — voir App\Actions\Stats\ComputeCommunityStats.
+    'cinemaCount' => 0,
+    'streamingCount' => 0,
     // Mode compact : à afficher dans une demi-largeur (bilan personnel + collectif côte à côte à
     // partir de `xl`). Sous `xl`, la mise en page reste identique au mode normal.
     'compact' => false,
@@ -17,12 +19,14 @@
 {{--
     Statistiques agrégées, tous membres confondus, sans aucun détail nominatif : ni liste de
     comptes, ni répartition individuelle par membre. Alimenté par App\Actions\Stats\ComputeCommunityStats.
-    Utilisé sur la page « Bilan » (accessible à tout membre) et en tête de la vue d'ensemble admin.
+    Utilisé sur la page « Bilan » (accessible à tout membre) et en tête de la vue d'ensemble admin
+    (identique, l'admin y ajoutant seulement sa propre carte « Membres » — voir
+    resources/views/livewire/admin/members.blade.php).
 --}}
 <div {{ $attributes }}>
 
     <!-- Chiffres clés -->
-    <section class="grid grid-cols-2 gap-3 {{ $compact ? '' : 'lg:grid-cols-4' }}">
+    <section class="grid grid-cols-2 gap-3 {{ $compact ? '' : 'sm:grid-cols-4' }}">
         <div class="cine-card p-5">
             <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Films au total</p>
             <p class="mt-1 text-3xl font-black tracking-tight text-zinc-100">{{ $totalFilms }}</p>
@@ -34,21 +38,29 @@
             <p class="mt-0.5 text-xs text-zinc-500">{{ $totalFilms > 0 ? round($watchedTotal / $totalFilms * 100) : 0 }} % des films</p>
         </div>
         <div class="cine-card p-5">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Genre n° 1</p>
-            <p class="mt-1 truncate text-2xl font-black tracking-tight text-zinc-100">{{ $genreCounts->keys()->first() ?? '—' }}</p>
-            <p class="mt-0.5 text-xs text-zinc-500">{{ $topGenreCount ? $topGenreCount.' film'.($topGenreCount > 1 ? 's' : '') : 'aucun genre renseigné' }}</p>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Vus au cinéma</p>
+            <p class="mt-1 text-3xl font-black tracking-tight text-amber-400">{{ $cinemaCount }}</p>
         </div>
         <div class="cine-card p-5">
-            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">À revoir</p>
-            <p class="mt-1 text-3xl font-black tracking-tight text-sky-400">{{ $toRewatchTotal }}</p>
-            <p class="mt-0.5 text-xs text-zinc-500">1ère fois : {{ $toRewatchFirstSeenCounts['cinema'] }} cinéma · {{ $toRewatchFirstSeenCounts['streaming'] }} streaming</p>
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Vus en streaming</p>
+            <p class="mt-1 text-3xl font-black tracking-tight text-violet-400">{{ $streamingCount }}</p>
         </div>
     </section>
 
-    <!-- Favoris, tous membres confondus (réalisateurs et studios : films déjà vus ; films préférés : tous statuts). Podiums de 3. -->
+    <!-- Favoris, tous membres confondus (réalisateurs, studios et genres : films déjà vus ; films
+         préférés : tous statuts). Podiums de 3. Le genre favori n'a plus sa propre carte dans les
+         chiffres clés ci-dessus : il apparaît déjà en tête du podium « Top 3 genres ». -->
     <section class="mt-3 grid gap-3 md:grid-cols-2 {{ $compact ? 'xl:grid-cols-1' : '' }}">
         @php
             $podiums = [
+                [
+                    'title' => 'Top 3 genres',
+                    'entries' => $genreCounts->take(3),
+                    'empty' => 'aucun genre renseigné',
+                    'card' => 'border-sky-800/40 bg-sky-950/20',
+                    'label' => 'text-sky-500/80',
+                    'name' => 'text-sky-400',
+                ],
                 [
                     'title' => 'Top 3 réalisateurs',
                     'entries' => $topDirectors,
@@ -87,10 +99,7 @@
         </div>
         @endforeach
 
-        {{-- Films préférés, tous membres confondus : voir resources/views/components/favorite-films-carousel.blade.php --}}
-        <x-favorite-films-carousel :favorite-films="$favoriteFilms" mode="community" />
-
-        {{-- Films les plus attendus, à côté du carrousel des favoris : films "à voir" pas encore
+        {{-- Films les plus attendus : films "à voir" pas encore
              sortis, les plus ajoutés — voir App\Actions\Stats\ComputeCommunityStats. Uniquement
              dans le bilan collectif. --}}
         @php($mostAnticipated ??= collect())
@@ -118,6 +127,10 @@
             @endif
         </div>
     </section>
+
+    {{-- Films préférés, tous membres confondus, mis en avant en pleine largeur sous les podiums —
+         voir resources/views/components/favorite-films-carousel.blade.php. --}}
+    <x-favorite-films-carousel :favorite-films="$favoriteFilms" mode="community" size="large" class="mt-3" />
 
     <!-- Films par catégorie (genre), tous membres confondus -->
     <section class="cine-card mt-3 p-6 sm:p-8">

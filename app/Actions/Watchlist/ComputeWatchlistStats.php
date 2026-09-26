@@ -58,10 +58,7 @@ class ComputeWatchlistStats
         return [
             'totalWatched' => $watched->count(),
             'averageRating' => $rated->isNotEmpty() ? round((float) $rated->avg('personal_rating'), 1) : null,
-            'topGenre' => $genreCounts->keys()->first(),
-            'topGenreCount' => $genreCounts->first(),
-            'topDirector' => $directorCounts->keys()->first(),
-            'topDirectorCount' => $directorCounts->first(),
+            'topGenres' => $genreCounts->take(3),
             'cinemaCount' => $watched->where('source', 'cinema')->count(),
             'streamingCount' => $watched->where('source', 'streaming')->count(),
             'toRewatchCount' => $toRewatch->count(),
@@ -70,8 +67,7 @@ class ComputeWatchlistStats
             'toRewatchStreamingCount' => $toRewatch->where('first_watched_source', 'streaming')->count(),
             'topDirectors' => $directorCounts->take(3),
             'topStudios' => $studioCounts->take(3),
-            // Films préférés sous 3 angles (note + nb de vues (doublé si à revoir) / nb de vues
-            // seul / note seule) — voir Favorites::filmsForUser().
+            // Films préférés sous 2 angles (nb de vues seul / note seule) — voir Favorites::filmsForUser().
             'favoriteFilms' => Favorites::filmsForUser($watched->merge($toRewatch), 3),
         ];
     }

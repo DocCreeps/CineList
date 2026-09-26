@@ -30,9 +30,7 @@ class ComputeMembersOverview
             ->orderBy('created_at')
             ->get();
 
-        $items = WatchlistItem::query()
-            ->withoutGlobalScope('owner')
-            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
+        $items = WatchlistItem::query()->adminSafe()->get();
 
         $itemsByUser = $items->groupBy('user_id');
 

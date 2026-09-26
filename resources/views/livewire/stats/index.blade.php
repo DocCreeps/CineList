@@ -58,8 +58,8 @@
                     :top-studios="$community['topStudios']"
                     :favorite-films="$community['favoriteFilms']"
                     :most-anticipated="$community['mostAnticipated']"
-                    :to-rewatch-total="$community['toRewatchTotal']"
-                    :to-rewatch-first-seen-counts="$community['toRewatchFirstSeenCounts']"
+                    :cinema-count="$community['cinemaCount']"
+                    :streaming-count="$community['streamingCount']"
                 />
             </div>
         </section>

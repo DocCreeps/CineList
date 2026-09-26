@@ -98,9 +98,9 @@ class MemberShow extends Component
         $search = trim($this->search);
 
         $all = WatchlistItem::query()
-            ->withoutGlobalScope('owner')
+            ->adminSafe()
             ->where('user_id', $member->id)
-            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
+            ->get();
 
         $detail = $computeDetail->handle($member->id, $all);
 

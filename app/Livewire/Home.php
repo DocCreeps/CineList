@@ -24,7 +24,7 @@ class Home extends Component
         $cinemaItems = WatchlistItem::query()
             ->where('source', 'cinema')
             ->where('status', 'to_watch')
-            ->get(['tmdb_id', 'title', 'poster_url']);
+            ->get();
 
         $releases = $cinemaItems->isEmpty()
             ? []

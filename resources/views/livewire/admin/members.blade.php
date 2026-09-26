@@ -16,7 +16,7 @@
             </div>
         </section>
 
-        <!-- Statistiques agrégées, identiques à celles de la page « Bilan » publique — voir x-community-stats -->
+        <!-- Statistiques agrégées, identiques à celles de la page « Bilan » publique — voir x-community-stats. -->
         <x-community-stats
             class="mt-3"
             :total-films="$totalFilms"
@@ -27,8 +27,8 @@
             :top-studios="$topStudios"
             :favorite-films="$favoriteFilms"
             :most-anticipated="$mostAnticipated"
-            :to-rewatch-total="$toRewatchTotal"
-            :to-rewatch-first-seen-counts="$toRewatchFirstSeenCounts"
+            :cinema-count="$cinemaCount"
+            :streaming-count="$streamingCount"
         />
 
         <!-- Membres : une carte par compte -->

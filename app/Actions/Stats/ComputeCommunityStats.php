@@ -15,8 +15,8 @@ use Illuminate\Support\Collection;
  * connecté.
  *
  * `WatchlistItem` porte un global scope `owner` qui restreint toute requête aux films de
- * l'utilisateur connecté (voir WatchlistItem::booted) : on le désactive explicitement ici pour
- * embrasser tous les comptes.
+ * l'utilisateur connecté (voir WatchlistItem::booted) : le scope `adminSafe()` le désactive pour
+ * embrasser tous les comptes, et ne charge que les colonnes autorisées (jamais la note privée).
  */
 class ComputeCommunityStats
 {
@@ -27,9 +27,7 @@ class ComputeCommunityStats
      */
     public function handle(?Collection $items = null): array
     {
-        $items ??= WatchlistItem::query()
-            ->withoutGlobalScope('owner')
-            ->get(WatchlistItem::ADMIN_SAFE_COLUMNS);
+        $items ??= WatchlistItem::query()->adminSafe()->get();
 
         $genreCounts = Genres::count($items);
 
@@ -38,7 +36,9 @@ class ComputeCommunityStats
         $directorCounts = Favorites::directors($watchedItems);
         $studioCounts = Favorites::studios($watchedItems);
 
-        $toRewatchItems = $items->where('status', 'to_rewatch');
+        // Vus au cinéma / en streaming, tous membres confondus : uniquement les films actuellement
+        // "watched" (pas "to_rewatch"), comme ComputeWatchlistStats côté bilan personnel.
+        $watchedOnly = $items->where('status', 'watched');
 
         // Films "les plus attendus" du bilan collectif : uniquement des films "à voir" pas encore
         // sortis (`release_date` dans le futur — les films sans date connue sont exclus, faute de
@@ -68,12 +68,8 @@ class ComputeCommunityStats
                 'rating' => $favoriteFilms['rating'],
             ]),
             'mostAnticipated' => $mostAnticipated,
-            'toRewatchTotal' => $toRewatchItems->count(),
-            // Où ces films ont été vus pour la 1ère fois, tous membres confondus (champ distinct de `source`).
-            'toRewatchFirstSeenCounts' => [
-                'cinema' => $toRewatchItems->where('first_watched_source', 'cinema')->count(),
-                'streaming' => $toRewatchItems->where('first_watched_source', 'streaming')->count(),
-            ],
+            'cinemaCount' => $watchedOnly->where('source', 'cinema')->count(),
+            'streamingCount' => $watchedOnly->where('source', 'streaming')->count(),
         ];
     }
 }

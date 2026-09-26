@@ -2,6 +2,7 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Models\Movie;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
@@ -26,20 +27,22 @@ class AddCollectionToWatchlist
         $added = 0;
 
         foreach ($parts as $part) {
-            if (WatchlistItem::where('tmdb_id', $part['tmdb_id'])->exists()) {
+            if (WatchlistItem::whereTmdbId((string) $part['tmdb_id'])->exists()) {
                 continue;
             }
 
-            $movie = $tmdb->find($part['tmdb_id']);
+            $details = $tmdb->find($part['tmdb_id']);
 
-            if (! $movie) {
+            if (! $details) {
                 continue;
             }
 
-            $window = ReleaseWindow::classify($movie['release_date'] ?? $part['release_date'] ?? null);
+            $window = ReleaseWindow::classify($details['release_date'] ?? $part['release_date'] ?? null);
+
+            $movie = Movie::syncFromTmdb($details);
 
             WatchlistItem::create([
-                ...$movie,
+                'movie_id' => $movie->id,
                 'source' => in_array($window, ['upcoming', 'in_cinema'], true) ? 'cinema' : 'streaming',
                 'status' => 'to_watch',
                 'watched_at' => null,

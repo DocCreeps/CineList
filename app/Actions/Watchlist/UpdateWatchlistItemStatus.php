@@ -20,12 +20,20 @@ class UpdateWatchlistItemStatus
      * lequel des deux, au cas où "à revoir" est posé directement sans passer par "vu"), puis à
      * chaque fois qu'on repasse de "à revoir" à "vu" (un revisionnage). Un simple aller-retour
      * entre "vu" et "à revoir" sans repasser par "vu" ne compte pas deux fois le même visionnage.
+     *
+     * Un film déjà vu (watched_at déjà renseigné) ne peut plus repasser en "à voir" — voir
+     * WatchlistItem::alreadyWatched() : la demande est silencieusement ignorée (le film garde son
+     * statut actuel) plutôt que de faire échouer tout un lot lors d'un changement groupé.
      */
     public function handle(WatchlistItem $item, string $status, ?string $firstWatchedSource = null): WatchlistItem
     {
         abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
         if ($firstWatchedSource !== null) {
             abort_unless(in_array($firstWatchedSource, ['cinema', 'streaming'], true), 422);
+        }
+
+        if ($status === 'to_watch' && $item->alreadyWatched()) {
+            return $item;
         }
 
         $watchedAt = match (true) {
