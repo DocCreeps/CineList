@@ -11,9 +11,6 @@
     // — voir App\Actions\Stats\ComputeCommunityStats.
     'cinemaCount' => 0,
     'streamingCount' => 0,
-    // Mode compact : à afficher dans une demi-largeur (bilan personnel + collectif côte à côte à
-    // partir de `xl`). Sous `xl`, la mise en page reste identique au mode normal.
-    'compact' => false,
 ])
 
 {{--
@@ -26,7 +23,7 @@
 <div {{ $attributes }}>
 
     <!-- Chiffres clés -->
-    <section class="grid grid-cols-2 gap-3 {{ $compact ? '' : 'sm:grid-cols-4' }}">
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div class="cine-card p-5">
             <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Films au total</p>
             <p class="mt-1 text-3xl font-black tracking-tight text-zinc-100">{{ $totalFilms }}</p>
@@ -50,7 +47,7 @@
     <!-- Favoris, tous membres confondus (réalisateurs, studios et genres : films déjà vus ; films
          préférés : tous statuts). Podiums de 3. Le genre favori n'a plus sa propre carte dans les
          chiffres clés ci-dessus : il apparaît déjà en tête du podium « Top 3 genres ». -->
-    <section class="mt-3 grid gap-3 md:grid-cols-2 {{ $compact ? 'xl:grid-cols-1' : '' }}">
+    <section class="mt-3 grid gap-3 md:grid-cols-2">
         @php
             $podiums = [
                 [
@@ -142,7 +139,7 @@
         @if ($genreCounts->isEmpty())
         <p class="mt-4 text-sm text-zinc-500">Aucun genre renseigné pour le moment.</p>
         @else
-        <div class="mt-5 grid gap-x-10 gap-y-3 md:grid-cols-2 {{ $compact ? 'xl:grid-cols-1' : '' }}">
+        <div class="mt-5 grid gap-x-10 gap-y-3 md:grid-cols-2">
             @foreach ($genreCounts as $genre => $count)
             <div>
                 <div class="mb-1 flex items-baseline justify-between text-xs">

@@ -102,31 +102,5 @@
                 @endforeach
             </div>
         </section>
-
-        <!-- Films par catégorie (genre), tous membres confondus -->
-        <section class="mt-10 rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-6 shadow-2xl sm:p-8">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-bold uppercase tracking-wide text-zinc-300">Films par catégorie</h2>
-                <span class="rounded-full bg-zinc-800 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{{ $totalFilms }} film{{ $totalFilms > 1 ? 's' : '' }} au total</span>
-            </div>
-
-            @if ($genreCounts->isEmpty())
-            <p class="mt-4 text-sm text-zinc-500">Aucun genre renseigné pour le moment.</p>
-            @else
-            <div class="mt-5 grid gap-x-10 gap-y-3 md:grid-cols-2">
-                @foreach ($genreCounts as $genre => $count)
-                <div>
-                    <div class="mb-1 flex items-baseline justify-between text-xs">
-                        <span class="font-bold text-zinc-300">{{ $genre }}</span>
-                        <span class="text-zinc-500">{{ $count }} film{{ $count > 1 ? 's' : '' }}</span>
-                    </div>
-                    <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
-                        <div class="h-full rounded-full bg-gradient-to-r from-amber-500 to-red-600" style="width: {{ $topGenreCount ? round($count / $topGenreCount * 100) : 0 }}%"></div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-            @endif
-        </section>
     </div>
 </main>
