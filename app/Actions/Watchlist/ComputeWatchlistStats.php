@@ -4,6 +4,7 @@ namespace App\Actions\Watchlist;
 
 use App\Models\WatchlistItem;
 use App\Support\Movies\Favorites;
+use App\Support\Movies\FieldList;
 use Illuminate\Support\Collection;
 
 class ComputeWatchlistStats
@@ -46,8 +47,7 @@ class ComputeWatchlistStats
     private function summarize(Collection $watched, Collection $toRewatch): array
     {
         $genreCounts = $watched->pluck('genre')
-            ->flatMap(fn ($g) => array_map('trim', explode(',', (string) $g)))
-            ->filter()
+            ->flatMap(fn ($g) => FieldList::split($g))
             ->countBy()
             ->sortDesc();
 

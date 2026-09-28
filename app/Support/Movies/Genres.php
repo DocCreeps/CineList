@@ -17,8 +17,7 @@ class Genres
     public static function count(Collection $items): Collection
     {
         return $items->pluck('genre')
-            ->flatMap(fn ($genre) => array_map('trim', explode(',', (string) $genre)))
-            ->filter()
+            ->flatMap(fn ($genre) => FieldList::split($genre))
             ->countBy()
             ->sortDesc();
     }

@@ -22,8 +22,7 @@ class Favorites
     public static function studios(Collection $items): Collection
     {
         return $items->pluck('studio')
-            ->flatMap(fn ($studio) => array_map('trim', explode(',', (string) $studio)))
-            ->filter()
+            ->flatMap(fn ($studio) => FieldList::split($studio))
             ->countBy()
             ->sortDesc();
     }

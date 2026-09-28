@@ -4,6 +4,7 @@ namespace App\Actions\Watchlist;
 
 use App\Models\Movie;
 use App\Models\WatchlistItem;
+use App\Support\Movies\FieldList;
 use Illuminate\Database\Eloquent\Builder;
 
 class FilterWatchlistItems
@@ -84,9 +85,9 @@ class FilterWatchlistItems
             ],
             // Valeurs distinctes sur toute la liste ; genre/studio sont des listes séparées
             // par des virgules, donc éclatés avant dédoublonnage.
-            'genreOptions' => $filterFields->pluck('genre')->flatMap(fn ($g) => array_map('trim', explode(',', (string) $g)))->filter()->unique()->sort()->values(),
+            'genreOptions' => $filterFields->pluck('genre')->flatMap(fn ($g) => FieldList::split($g))->unique()->sort()->values(),
             'directorOptions' => $filterFields->pluck('director')->filter()->unique()->sort()->values(),
-            'studioOptions' => $filterFields->pluck('studio')->flatMap(fn ($s) => array_map('trim', explode(',', (string) $s)))->filter()->unique()->sort()->values(),
+            'studioOptions' => $filterFields->pluck('studio')->flatMap(fn ($s) => FieldList::split($s))->unique()->sort()->values(),
         ];
     }
 }

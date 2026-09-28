@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Actions\Admin\ComputeMemberDetail;
 use App\Models\User;
 use App\Models\WatchlistItem;
+use App\Support\Movies\FieldList;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -109,7 +110,7 @@ class MemberShow extends Component
             ->when($source !== '', fn ($items) => $items->where('source', $source))
             // Un film peut avoir plusieurs genres : on compare à chacun, pas à la chaîne entière.
             ->when($genre !== '', fn ($items) => $items->filter(
-                fn ($item) => in_array($genre, array_map('trim', explode(',', (string) $item->genre)), true)
+                fn ($item) => FieldList::split($item->genre)->contains($genre)
             ))
             ->when($search !== '', fn ($items) => $items->filter(
                 fn ($item) => mb_stripos($item->title.' '.$item->director, $search) !== false
