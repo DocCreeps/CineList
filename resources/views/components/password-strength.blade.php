@@ -16,38 +16,7 @@
     sur la même page, ex. "new_password").
 --}}
 <div
-    x-data="{
-        value: '',
-        get rules() {
-            return [
-                { label: '12 caractères minimum', valid: this.value.length >= 12 },
-                { label: 'Une minuscule',         valid: /[a-z]/.test(this.value) },
-                { label: 'Une majuscule',         valid: /[A-Z]/.test(this.value) },
-                { label: 'Un chiffre',            valid: /[0-9]/.test(this.value) },
-                { label: 'Un caractère spécial',  valid: /[^A-Za-z0-9]/.test(this.value) },
-            ];
-        },
-        get score() {
-            return this.rules.filter(r => r.valid).length;
-        },
-        get scoreLabel() {
-            if (this.value.length === 0) return '';
-            if (this.score <= 2) return 'Faible';
-            if (this.score <= 4) return 'Moyen';
-            return 'Fort';
-        },
-        get scoreColor() {
-            if (this.score <= 2) return 'bg-red-500';
-            if (this.score <= 4) return 'bg-amber-500';
-            return 'bg-emerald-500';
-        },
-        init() {
-            const field = document.getElementById('{{ $target }}');
-            if (!field) return;
-            this.value = field.value;
-            field.addEventListener('input', (e) => { this.value = e.target.value; });
-        },
-    }"
+    x-data="passwordStrength('{{ $target }}')"
     class="mt-2.5 space-y-2"
     x-show="value.length > 0"
     x-cloak
@@ -58,7 +27,7 @@
             <div
                 class="h-full rounded-full transition-all duration-300 ease-out"
                 :class="scoreColor"
-                :style="`width: ${(score / 5) * 100}%`"
+                :style="barStyle"
             ></div>
         </div>
         <span

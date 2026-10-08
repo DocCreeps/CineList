@@ -21,7 +21,7 @@ class MovieFactory extends Factory
             'director' => fake()->name(),
             'studio' => fake()->company(),
             'runtime' => '110 min',
-            'imdb_rating' => fake()->randomFloat(1, 4, 9),
+            'tmdb_rating' => fake()->randomFloat(1, 4, 9),
         ];
     }
 }

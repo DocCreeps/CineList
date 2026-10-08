@@ -115,7 +115,7 @@
                                     @if ($canRevoke && ! $isExpired)
                                     <button
                                         type="button"
-                                        x-on:click="$store.confirmModal.open(@js('Révoquer ce code ?'), () => $wire.revoke({{ $invite->id }}))"
+                                        x-on:click="$store.confirmModal.open(@js('Révoquer ce code ?'), $wire, 'revoke', [{{ $invite->id }}])"
                                         class="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/15 hover:text-red-300"
                                     >
                                         Révoquer
@@ -123,7 +123,7 @@
                                     @elseif ($isAvailable && $invite->uses_count > 0)
                                     <button
                                         type="button"
-                                        x-on:click="$store.confirmModal.open(@js('Désactiver ce code ?'), () => $wire.disable({{ $invite->id }}))"
+                                        x-on:click="$store.confirmModal.open(@js('Désactiver ce code ?'), $wire, 'disable', [{{ $invite->id }}])"
                                         class="rounded-lg border border-zinc-700 bg-zinc-800/50 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
                                     >
                                         Désactiver

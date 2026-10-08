@@ -5,6 +5,7 @@
 @php
     $adminTabs = [
         'admin.invitations' => "Codes d'invitation",
+        'admin.demo-links' => 'Liens démo',
         'admin.members' => 'Membres & catégories',
     ];
 @endphp

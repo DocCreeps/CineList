@@ -64,14 +64,18 @@ class Sessions extends Component
 
         RateLimiter::clear($throttleKey);
 
-        // Régénère l'identifiant de la session courante et supprime toutes les
-        // autres lignes de la table `sessions` pour cet utilisateur.
+        // Change l'empreinte du mot de passe : le middleware AuthenticateSession (groupe `web`) invalide
+        // alors toute autre session de ce compte, quel que soit le pilote de session.
         Auth::logoutOtherDevices($this->password);
 
-        DB::table('sessions')
-            ->where('user_id', Auth::id())
-            ->where('id', '!=', request()->session()->getId())
-            ->delete();
+        // Avec le pilote « database », on supprime en plus les lignes de la table `sessions` : elles
+        // disparaissent tout de suite de la liste au lieu d'attendre le prochain passage de l'autre appareil.
+        if (config('session.driver') === 'database') {
+            DB::table('sessions')
+                ->where('user_id', Auth::id())
+                ->where('id', '!=', request()->session()->getId())
+                ->delete();
+        }
 
         $this->password = '';
         $this->confirmingLogout = false;

@@ -60,8 +60,8 @@ class Invitations extends Component
         );
 
         if ($invite->sent_to) {
-            Mail::to($invite->sent_to)->send(new InviteCodeMail($invite));
-            $this->dispatch('toast', message: "Code généré et envoyé par e-mail à {$invite->sent_to}.");
+            Mail::to($invite->sent_to)->queue(new InviteCodeMail($invite));
+            $this->dispatch('toast', message: "Code généré, e-mail en cours d'envoi à {$invite->sent_to}.");
             $this->lastGeneratedCode = null;
         } else {
             $this->dispatch('toast', message: "Code généré : {$invite->code}");

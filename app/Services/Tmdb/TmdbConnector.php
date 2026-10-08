@@ -2,7 +2,9 @@
 
 namespace App\Services\Tmdb;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -30,17 +32,34 @@ class TmdbConnector
      */
     public function client(): PendingRequest
     {
-        return $this->authorize(Http::baseUrl($this->baseUrl())->acceptJson());
+        $request = $this->authorize(Http::baseUrl($this->baseUrl())->acceptJson());
+
+        // Nouvelle tentative uniquement sur une panne passagère (connexion coupée, 429, 5xx) : un 404
+        // ou un 401 ne se corrige pas en réessayant. `throw: false` rend la dernière réponse au lieu
+        // de lever une exception, pour que les appelants continuent de tester `$response->failed()`.
+        // Les requêtes d'un Http::pool() ne passent pas par ici et ne sont donc jamais rejouées.
+        return $request->retry(
+            max(1, (int) config('services.tmdb.retries', 2)),
+            250,
+            fn ($exception) => $exception instanceof ConnectionException
+                || ($exception instanceof RequestException && in_array($exception->response->status(), [429, 500, 502, 503, 504], true)),
+            throw: false,
+        );
     }
 
     /**
-     * Ajoute l'authentification Bearer à une requête, mais uniquement quand l'identifiant
-     * configuré est un "API Read Access Token" v4 (un JWT). Une clé d'API v3 classique n'est pas
-     * un Bearer valide et doit être passée en paramètre d'URL à la place (voir withAuth()).
+     * Ajoute les délais réseau, puis l'authentification Bearer à une requête, mais uniquement quand
+     * l'identifiant configuré est un "API Read Access Token" v4 (un JWT). Une clé d'API v3 classique
+     * n'est pas un Bearer valide et doit être passée en paramètre d'URL à la place (voir withAuth()).
+     * Les délais sont posés ici pour couvrir aussi les requêtes construites dans un Http::pool().
      */
     public function authorize(PendingRequest $request): PendingRequest
     {
         $token = (string) config('services.tmdb.token');
+
+        $request = $request
+            ->timeout((int) config('services.tmdb.timeout', 8))
+            ->connectTimeout((int) config('services.tmdb.connect_timeout', 3));
 
         return $this->isV4Token($token) ? $request->withToken($token) : $request;
     }

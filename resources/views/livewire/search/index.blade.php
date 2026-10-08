@@ -161,9 +161,9 @@
                             <h3 class="truncate font-bold text-zinc-100 text-sm group-hover:text-amber-400 transition-colors">{{ $result['title'] }}</h3>
                             <p class="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
                                 <span>{{ $result['year'] ?: '—' }}</span>
-                                @if(!empty($result['imdb_rating']))
+                                @if(!empty($result['tmdb_rating']))
                                 <span class="text-zinc-700">·</span>
-                                <span class="font-semibold text-amber-400">★ {{ $result['imdb_rating'] }}</span>
+                                <span class="font-semibold text-amber-400">★ {{ $result['tmdb_rating'] }}</span>
                                 @endif
                             </p>
                             @if($searchMode === 'studio' && !empty($result['studio']))
@@ -197,13 +197,13 @@
                             @else
                             <button
                                 type="button"
-                                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $result['title'] . ' » comme déjà vu et l\'ajouter à votre liste ?'), () => $wire.add('{{ $result['tmdb_id'] }}', 'streaming', 'watched'))"
+                                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $result['title'] . ' » comme déjà vu et l\'ajouter à votre liste ?'), $wire, 'add', ['{{ $result['tmdb_id'] }}', 'streaming', 'watched'])"
                                 class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
                             >Déjà vue</button>
                             <button wire:click="add('{{ $result['tmdb_id'] }}', 'streaming')" class="rounded-lg bg-violet-950/80 border border-violet-800/60 px-2.5 py-1 text-[11px] font-bold text-violet-300 transition hover:bg-violet-900 hover:text-white">+ Streaming</button>
                             <button
                                 type="button"
-                                x-on:click="$store.confirmModal.open(@js('Ajouter « ' . $result['title'] . ' » à votre liste « à revoir » ?'), () => $wire.add('{{ $result['tmdb_id'] }}', 'streaming', 'to_rewatch'), { danger: false, confirmLabel: 'Ajouter' })"
+                                x-on:click="$store.confirmModal.open(@js('Ajouter « ' . $result['title'] . ' » à votre liste « à revoir » ?'), $wire, 'add', ['{{ $result['tmdb_id'] }}', 'streaming', 'to_rewatch'], { danger: false, confirmLabel: 'Ajouter' })"
                                 class="rounded-lg bg-sky-950/80 border border-sky-800/60 px-2.5 py-1 text-[11px] font-bold text-sky-300 transition hover:bg-sky-900 hover:text-white"
                             >Revoir</button>
                             @endif

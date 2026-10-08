@@ -31,32 +31,12 @@
 @if ($count > 0)
 <section
     {{ $attributes->merge(['class' => 'rounded-2xl border border-zinc-800 bg-zinc-900/40']) }}
-    x-data="{
-        open: false,
-        i: {{ $count - 1 }},
-        count: {{ $count }},
-        startX: null,
-        toggle() {
-            this.open = ! this.open;
-            if (this.open) this.go(this.i);
-        },
-        go(n) {
-            this.i = Math.max(0, Math.min(this.count - 1, n));
-            this.$nextTick(() => this.$refs['chip' + this.i]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
-        },
-        swipeStart(e) { this.startX = e.changedTouches[0].clientX; },
-        swipeEnd(e) {
-            if (this.startX === null) return;
-            const dx = e.changedTouches[0].clientX - this.startX;
-            this.startX = null;
-            if (Math.abs(dx) > 50) this.go(this.i + (dx < 0 ? 1 : -1));
-        },
-    }"
+    x-data="monthSlider({{ $count }})"
 >
     <button
         type="button"
         x-on:click="toggle()"
-        x-bind:aria-expanded="open.toString()"
+        x-bind:aria-expanded="open ? 'true' : 'false'"
         class="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
     >
         <span class="flex items-baseline gap-3">
@@ -87,7 +67,7 @@
                     role="tab"
                     x-ref="chip{{ $loop->index }}"
                     x-on:click="go({{ $loop->index }})"
-                    x-bind:aria-selected="(i === {{ $loop->index }}).toString()"
+                    x-bind:aria-selected="i === {{ $loop->index }} ? 'true' : 'false'"
                     x-bind:class="i === {{ $loop->index }} ? '{{ $theme['chipOn'] }}' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'"
                     class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition"
                 >{{ $month }} <span class="opacity-60">· {{ $group->count() }}</span></button>

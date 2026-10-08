@@ -4,7 +4,7 @@
 
      <button
          type="button"
-         x-on:click="$store.confirmModal.open(@js('Supprimer ?'), () => $wire.remove({{ $item->id }}))"
+         x-on:click="$store.confirmModal.open(@js('Supprimer ?'), $wire, 'remove', [{{ $item->id }}])"
      >Supprimer</button>
 --}}
 <div

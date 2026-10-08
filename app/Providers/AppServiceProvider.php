@@ -2,9 +2,13 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsureUserIsAdmin;
+use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +25,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Livewire ne rejoue pas, sur ses requêtes de mise à jour (/livewire/update), les middlewares
+        // de la route de la page : seuls ceux de sa liste « persistante » le sont. Sans ces deux
+        // ajouts, `admin` et `password.confirm` ne protégeaient que le chargement initial de la page :
+        // un compte rétrogradé, ou dont la confirmation de mot de passe a expiré, pouvait continuer à
+        // appeler les actions d'une page admin ou de /parametres déjà ouverte (ex. deleteMember).
+        Livewire::addPersistentMiddleware([
+            EnsureUserIsAdmin::class,
+            RequirePassword::class,
+        ]);
+
         // Politique de mot de passe appliquée partout où Password::defaults() est utilisé
         // (formulaires d'inscription et de réinitialisation) : 12 caractères minimum,
         // majuscule + minuscule, au moins un chiffre, au moins un caractère spécial.

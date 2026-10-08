@@ -4,7 +4,6 @@ namespace App\Actions\InviteCodes;
 
 use App\Models\InviteCode;
 use App\Models\User;
-use Illuminate\Support\Str;
 
 class GenerateInviteCode
 {
@@ -27,10 +26,29 @@ class GenerateInviteCode
         ]);
     }
 
+    /** Lettres et chiffres sans I, L, O, 0, 1 (confusions à la lecture) : 31 symboles. */
+    private const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+    /**
+     * Code de la forme XXXX-XXXX-XXXX : 12 symboles tirés au hasard cryptographique (random_int),
+     * soit environ 59 bits. Les anciens codes à 8 caractères (≈ 41 bits) restent valables.
+     */
     private function generateUniqueCode(): string
     {
         do {
-            $code = strtoupper(Str::random(4)).'-'.strtoupper(Str::random(4));
+            $groups = [];
+
+            for ($g = 0; $g < 3; $g++) {
+                $group = '';
+
+                for ($i = 0; $i < 4; $i++) {
+                    $group .= self::ALPHABET[random_int(0, strlen(self::ALPHABET) - 1)];
+                }
+
+                $groups[] = $group;
+            }
+
+            $code = implode('-', $groups);
         } while (InviteCode::query()->where('code', $code)->exists());
 
         return $code;

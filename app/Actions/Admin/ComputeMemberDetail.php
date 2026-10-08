@@ -2,6 +2,8 @@
 
 namespace App\Actions\Admin;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 use App\Support\Movies\Genres;
 use Illuminate\Support\Carbon;
@@ -24,14 +26,14 @@ class ComputeMemberDetail
             ->where('user_id', $memberId)
             ->get();
 
-        $watched = $items->whereIn('status', ['watched', 'to_rewatch']);
+        $watched = $items->whereIn('status', WatchStatus::seen());
 
         $genreCounts = Genres::count($watched);
         $genreCountsAll = Genres::count($items);
 
         $rated = $watched->whereNotNull('personal_rating');
         $lastWatched = $watched->sortByDesc('watched_at')->first();
-        $toRewatch = $items->where('status', 'to_rewatch');
+        $toRewatch = $items->where('status', WatchStatus::ToRewatch);
         $lastActivity = DB::table('sessions')->where('user_id', $memberId)->max('last_activity');
 
         return [
@@ -39,7 +41,7 @@ class ComputeMemberDetail
             'genreCounts' => $genreCounts,
             'topGenreCount' => $genreCounts->first(),
             'watchedCount' => $watched->count(),
-            'toWatchCount' => $items->where('status', 'to_watch')->count(),
+            'toWatchCount' => $items->where('status', WatchStatus::ToWatch)->count(),
             'averageRating' => $rated->isNotEmpty() ? round((float) $rated->avg('personal_rating'), 1) : null,
             'ratedCount' => $rated->count(),
             'lastWatched' => $lastWatched,
@@ -47,19 +49,19 @@ class ComputeMemberDetail
             // Vue « toute la liste », avec la part déjà vue de chaque genre.
             'total' => $items->count(),
             'statusCounts' => [
-                'to_watch' => $items->where('status', 'to_watch')->count(),
-                'watched' => $items->where('status', 'watched')->count(),
-                'to_rewatch' => $items->where('status', 'to_rewatch')->count(),
+                'to_watch' => $items->where('status', WatchStatus::ToWatch)->count(),
+                'watched' => $items->where('status', WatchStatus::Watched)->count(),
+                'to_rewatch' => $items->where('status', WatchStatus::ToRewatch)->count(),
             ],
             'sourceCounts' => [
-                'cinema' => $items->where('source', 'cinema')->count(),
-                'streaming' => $items->where('source', 'streaming')->count(),
+                'cinema' => $items->where('source', WatchSource::Cinema)->count(),
+                'streaming' => $items->where('source', WatchSource::Streaming)->count(),
             ],
             // Où ce membre a vu ses films "à revoir" pour la toute première fois (champ distinct de `source`).
             'toRewatchCount' => $toRewatch->count(),
             'toRewatchFirstSeenCounts' => [
-                'cinema' => $toRewatch->where('first_watched_source', 'cinema')->count(),
-                'streaming' => $toRewatch->where('first_watched_source', 'streaming')->count(),
+                'cinema' => $toRewatch->where('first_watched_source', WatchSource::Cinema)->count(),
+                'streaming' => $toRewatch->where('first_watched_source', WatchSource::Streaming)->count(),
             ],
             'genreBreakdown' => $genreCountsAll->map(fn ($total, $genre) => [
                 'total' => $total,

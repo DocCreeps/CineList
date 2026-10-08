@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\DemoLoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
@@ -7,6 +8,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::livewire('/connexion', 'auth.login')->name('login');
     Route::livewire('/inscription', 'auth.register')->name('register');
+
+    // Connexion automatique au compte démo (lecture seule) via un lien créé dans Admin → Liens démo.
+    Route::get('/demo/{token}', DemoLoginController::class)->middleware('throttle:20,1')->name('demo.login');
     Route::livewire('/mot-de-passe-oublie', 'auth.forgot-password')->name('password.request');
     Route::livewire('/reinitialiser-mot-de-passe/{token}', 'auth.reset-password')->name('password.reset');
 
@@ -42,7 +46,7 @@ Route::middleware('auth')->group(function () {
 
     // Pages sensibles : ré-authentification par mot de passe exigée
     // (redirigées vers password.confirm si non confirmées récemment).
-    Route::middleware('password.confirm')->prefix('parametres')->name('settings.')->group(function () {
+    Route::middleware(['not-demo', 'password.confirm'])->prefix('parametres')->name('settings.')->group(function () {
         Route::livewire('/profil', 'settings.profile')->name('profile');
         Route::livewire('/mot-de-passe', 'settings.password')->name('password');
         Route::livewire('/double-authentification', 'settings.two-factor')->name('two-factor');
@@ -51,8 +55,9 @@ Route::middleware('auth')->group(function () {
 
     // Réservé aux comptes administrateurs (voir App\Http\Middleware\EnsureUserIsAdmin) :
     // confirmation de mot de passe exigée en plus, comme pour les autres pages sensibles.
-    Route::middleware(['password.confirm', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['not-demo', 'password.confirm', 'admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::livewire('/invitations', 'admin.invitations')->name('invitations');
+        Route::livewire('/liens-demo', 'admin.demo-links')->name('demo-links');
         Route::livewire('/membres', 'admin.members')->name('members');
         Route::livewire('/membres/{member}', 'admin.member-show')->name('members.show');
     });

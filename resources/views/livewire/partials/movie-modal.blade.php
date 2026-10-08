@@ -31,9 +31,9 @@
                 @endif
 
                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                    @if($selectedMovie['imdb_rating'])
+                    @if($selectedMovie['tmdb_rating'])
                     <span class="flex items-center gap-1 text-sm font-bold text-amber-400">
-                        ★ {{ $selectedMovie['imdb_rating'] }} <span class="text-xs text-zinc-500 font-normal">/10</span>
+                        ★ {{ $selectedMovie['tmdb_rating'] }} <span class="text-xs text-zinc-500 font-normal">/10</span>
                     </span>
                     @endif
                     @if($selectedMovie['genre'])
@@ -48,7 +48,7 @@
                     </p>
                     <button
                         type="button"
-                        x-on:click="$store.confirmModal.open(@js('Ajouter tous les films de cette saga qui ne sont pas déjà dans votre liste ?'), () => $wire.addCollection({{ $selectedMovie['collection']['id'] }}), { danger: false, confirmLabel: 'Ajouter' })"
+                        x-on:click="$store.confirmModal.open(@js('Ajouter tous les films de cette saga qui ne sont pas déjà dans votre liste ?'), $wire, 'addCollection', [{{ $selectedMovie['collection']['id'] }}], { danger: false, confirmLabel: 'Ajouter' })"
                         class="shrink-0 rounded-lg bg-amber-500 px-2.5 py-1 text-[10px] font-bold text-zinc-950 transition hover:bg-amber-400"
                     >
                         + Toute la saga
@@ -245,9 +245,7 @@
                 </div>
 
                 @if(!empty($selectedMovie['similar']))
-                <div class="mt-4 min-w-0 border-t border-zinc-800 pt-4" x-data="{
-                    scrollBy(amount) { this.$refs.track.scrollBy({ left: amount, behavior: 'smooth' }) }
-                }">
+                <div class="mt-4 min-w-0 border-t border-zinc-800 pt-4" x-data="scrollTrack">
                     <div class="mb-2 flex items-center justify-between">
                         <p class="text-xs font-bold text-zinc-400">Films similaires</p>
                         <div class="flex gap-1">

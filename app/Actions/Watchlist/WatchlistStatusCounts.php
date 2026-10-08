@@ -2,6 +2,7 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 
 class WatchlistStatusCounts
@@ -21,9 +22,9 @@ class WatchlistStatusCounts
 
         return [
             'all' => $counts->sum(),
-            'to_watch' => (int) $counts->get('to_watch', 0),
-            'watched' => (int) $counts->get('watched', 0),
-            'to_rewatch' => (int) $counts->get('to_rewatch', 0),
+            'to_watch' => (int) $counts->get(WatchStatus::ToWatch->value, 0),
+            'watched' => (int) $counts->get(WatchStatus::Watched->value, 0),
+            'to_rewatch' => (int) $counts->get(WatchStatus::ToRewatch->value, 0),
         ];
     }
 }

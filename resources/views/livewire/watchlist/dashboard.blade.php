@@ -110,7 +110,7 @@
             <span class="h-4 w-px bg-zinc-700"></span>
             <button
                 type="button"
-                x-on:click="$store.confirmModal.open(@js('Retirer ' . count($selectedIds) . ' film(s) de votre liste ?'), () => $wire.bulkRemove())"
+                x-on:click="$store.confirmModal.open(@js('Retirer ' . count($selectedIds) . ' film(s) de votre liste ?'), $wire, 'bulkRemove', [])"
                 class="rounded-lg bg-red-950/60 px-2.5 py-1 text-[11px] font-bold text-red-400 transition hover:bg-red-900/60"
             >🗑️ Supprimer</button>
         </div>

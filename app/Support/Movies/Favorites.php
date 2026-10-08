@@ -2,6 +2,7 @@
 
 namespace App\Support\Movies;
 
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 use Illuminate\Support\Collection;
 
@@ -54,7 +55,7 @@ class Favorites
         return $items->whereNotNull('personal_rating')
             ->sortByDesc(fn (WatchlistItem $item) => [
                 (int) $item->personal_rating,
-                (float) $item->imdb_rating,
+                (float) $item->tmdb_rating,
                 $item->watched_at?->timestamp ?? 0,
             ])
             ->take($limit)
@@ -225,14 +226,14 @@ class Favorites
                 'views' => $views,
                 // Où ce film a été vu pour la première fois (voir filmsForUser côté carrousel) :
                 // n'a de sens que pour un groupe à un seul film (un seul utilisateur).
-                'first_watched_source' => $first->first_watched_source,
+                'first_watched_source' => $first->first_watched_source?->value,
                 'ratings' => $rated->count(),
                 'average' => $rated->isNotEmpty() ? round((float) $rated->avg('personal_rating'), 1) : null,
                 // Répartition des ajouts par statut, pour l'affichage (« 2 vus · 1 à voir »).
                 'statuses' => [
-                    'to_watch' => $group->where('status', 'to_watch')->count(),
-                    'watched' => $group->where('status', 'watched')->count(),
-                    'to_rewatch' => $group->where('status', 'to_rewatch')->count(),
+                    'to_watch' => $group->where('status', WatchStatus::ToWatch)->count(),
+                    'watched' => $group->where('status', WatchStatus::Watched)->count(),
+                    'to_rewatch' => $group->where('status', WatchStatus::ToRewatch)->count(),
                 ],
             ];
         });

@@ -45,9 +45,15 @@
                     Admin
                 </a>
             @endif
-            <a href="{{ route('settings.profile') }}" wire:navigate class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-100">
-                {{ auth()->user()->name }}
-            </a>
+            @if (auth()->user()->isDemo())
+                <span title="Compte fictif : vos modifications n'affectent aucun vrai compte et sont effacées au bout de {{ config('demo.sandbox_ttl_hours') }} h." class="rounded-xl border border-amber-500/40 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-400">
+                    Démo · données fictives
+                </span>
+            @else
+                <a href="{{ route('settings.profile') }}" wire:navigate class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-zinc-100">
+                    {{ auth()->user()->name }}
+                </a>
+            @endif
             <button type="submit" class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/60 hover:text-red-400">
                 Déconnexion
             </button>

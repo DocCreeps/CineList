@@ -19,9 +19,9 @@
             <span class="rounded-lg bg-black/60 backdrop-blur-md px-2 py-1 text-[11px] font-bold text-zinc-300 border border-white/10">
                 {{ $item->year ?: '—' }}
             </span>
-            @if($item->imdb_rating)
+            @if($item->tmdb_rating)
             <span class="flex items-center gap-1 rounded-lg bg-amber-400 backdrop-blur-md px-2 py-1 text-[11px] font-black text-zinc-950 shadow-md">
-                ★ {{ $item->imdb_rating }}
+                ★ {{ $item->tmdb_rating }}
             </span>
             @endif
         </div>
@@ -43,16 +43,16 @@
             <p class="mt-0.5 line-clamp-1 text-xs text-zinc-500">
                 {{ $item->genre ?: 'Film' }}
             </p>
-            <p class="mt-1 text-[11px] font-semibold {{ $item->source === 'streaming' ? 'text-violet-400' : 'text-amber-400' }}">
-                {{ $item->source === 'streaming' ? 'Streaming' : 'Cinéma' }}
+            <p class="mt-1 text-[11px] font-semibold {{ $item->source === \App\Enums\WatchSource::Streaming ? 'text-violet-400' : 'text-amber-400' }}">
+                {{ $item->source === \App\Enums\WatchSource::Streaming ? 'Streaming' : 'Cinéma' }}
             </p>
             @if ($item->first_watched_source)
-            <p class="mt-0.5 text-[10px] text-zinc-500">1ère fois : {{ $item->first_watched_source === 'streaming' ? 'streaming' : 'cinéma' }}</p>
+            <p class="mt-0.5 text-[10px] text-zinc-500">1ère fois : {{ $item->first_watched_source === \App\Enums\WatchSource::Streaming ? 'streaming' : 'cinéma' }}</p>
             @endif
 
             <!-- Nombre de fois vu : s'incrémente tout seul à chaque passage en "vu". Reste corrigeable
                  à la main tant qu'aucun vrai revisionnage n'a eu lieu (voir WatchlistItem::watchCountLocked()). -->
-            @if(in_array($item->status, ['watched', 'to_rewatch'], true))
+            @if(in_array($item->status, \App\Enums\WatchStatus::seen(), true))
             <div class="mt-1.5 flex items-center gap-1.5">
                 <span class="text-[10px] uppercase tracking-wide text-zinc-500">Vu</span>
                 @if ($item->watchCountLocked())
@@ -82,7 +82,7 @@
             </div>
 
             <!-- Note personnelle : n'a de sens qu'une fois le film réellement vu -->
-            @if(in_array($item->status, ['watched', 'to_rewatch'], true))
+            @if(in_array($item->status, \App\Enums\WatchStatus::seen(), true))
             <div class="mt-2 flex items-center gap-0.5" role="group" aria-label="Votre note">
                 @for ($star = 1; $star <= 5; $star++) <button wire:click="setPersonalRating({{ $item->id }}, {{ $star }})" title="Noter {{ $star }}/5" class="text-sm leading-none transition {{ $star <= ($item->personal_rating ?? 0) ? 'text-amber-400' : 'text-zinc-700 hover:text-zinc-500' }}">★</button>
                     @endfor
@@ -96,15 +96,15 @@
                     wire:click="setStatus({{ $item->id }}, 'to_watch')"
                     @disabled($item->alreadyWatched())
                     title="{{ $item->alreadyWatched() ? 'Déjà vu : ne peut plus repasser en à voir' : 'Marquer à voir' }}"
-                    @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> $item->status === 'to_watch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_watch', 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-zinc-600' => $item->alreadyWatched()])
+                    @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-amber-950/80 text-amber-400 border border-amber-800/50'=> $item->status === \App\Enums\WatchStatus::ToWatch, 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_watch', 'opacity-30 cursor-not-allowed hover:bg-transparent hover:text-zinc-600' => $item->alreadyWatched()])
                 >○</button>
-                <button wire:click="setStatus({{ $item->id }}, 'watched')" title="Marquer comme vu" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'=> $item->status === 'watched', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'watched'])>✓</button>
+                <button wire:click="setStatus({{ $item->id }}, 'watched')" title="Marquer comme vu" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'=> $item->status === \App\Enums\WatchStatus::Watched, 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'watched'])>✓</button>
                 {{-- Toujours une bascule directe, sans rien imposer : le choix cinéma/streaming reste optionnel (ci-dessous). --}}
-                <button wire:click="setStatus({{ $item->id }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50'=> $item->status === 'to_rewatch', 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_rewatch'])>↺</button>
+                <button wire:click="setStatus({{ $item->id }}, 'to_rewatch')" title="Marquer à revoir" @class(['grid h-7 w-7 place-items-center rounded-lg text-sm font-bold transition', 'bg-sky-950/80 text-sky-400 border border-sky-800/50'=> $item->status === \App\Enums\WatchStatus::ToRewatch, 'text-zinc-600 border border-transparent hover:text-zinc-300 hover:bg-zinc-800/60' => $item->status !== 'to_rewatch'])>↺</button>
             </div>
             <button
                 type="button"
-                x-on:click="$store.confirmModal.open(@js('Retirer ce film de votre liste ?'), () => $wire.remove({{ $item->id }}))"
+                x-on:click="$store.confirmModal.open(@js('Retirer ce film de votre liste ?'), $wire, 'remove', [{{ $item->id }}])"
                 class="p-1 text-zinc-600 hover:text-red-400 transition"
                 title="Retirer de la liste"
             >
@@ -114,7 +114,7 @@
             </button>
         </div>
 
-        @if ($item->status === 'to_rewatch' && ! $item->first_watched_source)
+        @if ($item->status === \App\Enums\WatchStatus::ToRewatch && ! $item->first_watched_source)
         {{-- Choix mis en évidence (pas caché derrière un "?") : optionnel, mais explicite sur ce qu'il signifie. --}}
         <div class="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed border-sky-800/50 bg-sky-950/10 px-2 py-1.5">
             <span class="text-[10px] leading-tight text-zinc-400">Vu la 1ère fois :</span>

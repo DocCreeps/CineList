@@ -2,8 +2,11 @@
 
 namespace App\Livewire\Watchlist;
 
+use App\Actions\Stats\ComputeCommunityStats;
+use App\Actions\Watchlist\BulkUpdateWatchlistStatus;
 use App\Actions\Watchlist\FilterWatchlistItems;
-use App\Actions\Watchlist\UpdateWatchlistItemStatus;
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Livewire\Concerns\InteractsWithMovies;
 use App\Models\WatchlistItem;
 use Livewire\Component;
@@ -77,27 +80,26 @@ class Dashboard extends Component
         $this->selectedIds = [];
     }
 
-    /** Applique à chaque film sélectionné la même logique de date de visionnage que setStatus(). */
-    public function bulkSetStatus(string $status, UpdateWatchlistItemStatus $action): void
+    /**
+     * Applique à chaque film sélectionné la même logique de date de visionnage que setStatus(),
+     * en une seule transaction (voir BulkUpdateWatchlistStatus).
+     */
+    public function bulkSetStatus(string $status, BulkUpdateWatchlistStatus $action): void
     {
-        abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
+        $newStatus = WatchStatus::tryFrom($status);
+        abort_unless($newStatus !== null, 422);
 
-        $done = 0;
-
-        foreach ($this->selectedIds as $id) {
-            $action->handle(WatchlistItem::findOrFail($id), $status);
-            $done++;
-        }
+        $done = $action->handle($this->selectedIds, $status);
 
         $this->clearSelection();
 
         if ($done > 0) {
             $s = $done > 1 ? 's' : '';
 
-            $this->dispatch('toast', message: match ($status) {
-                'to_watch' => "{$this->filmCount($done)} remis dans « À voir ».",
-                'watched' => "{$this->filmCount($done)} marqué{$s} comme vu{$s}.",
-                'to_rewatch' => "{$this->filmCount($done)} ajouté{$s} à « À revoir ».",
+            $this->dispatch('toast', message: match ($newStatus) {
+                WatchStatus::ToWatch => "{$this->filmCount($done)} remis dans « À voir ».",
+                WatchStatus::Watched => "{$this->filmCount($done)} marqué{$s} comme vu{$s}.",
+                WatchStatus::ToRewatch => "{$this->filmCount($done)} ajouté{$s} à « À revoir ».",
             });
         }
     }
@@ -122,6 +124,7 @@ class Dashboard extends Component
     {
         $removed = WatchlistItem::whereIn('id', $this->selectedIds)->delete();
         $this->clearSelection();
+        ComputeCommunityStats::forget();
 
         if ($removed > 0) {
             $this->dispatch('toast', message: "{$this->filmCount($removed)} retiré".($removed > 1 ? 's' : '').' de votre liste.');
@@ -130,13 +133,13 @@ class Dashboard extends Component
 
     public function toggleStatusFilter(string $status): void
     {
-        abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
+        abort_unless(WatchStatus::tryFrom($status) !== null, 422);
         $this->statusFilter = $this->toggled($this->statusFilter, $status);
     }
 
     public function toggleSourceFilter(string $source): void
     {
-        abort_unless(in_array($source, ['cinema', 'streaming'], true), 422);
+        abort_unless(WatchSource::tryFrom($source) !== null, 422);
         $this->sourceFilter = $this->toggled($this->sourceFilter, $source);
     }
 

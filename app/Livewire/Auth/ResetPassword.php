@@ -4,6 +4,7 @@ namespace App\Livewire\Auth;
 
 use App\Actions\Fortify\PasswordValidationRules;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\ResetsUserPasswords;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -36,7 +37,7 @@ class ResetPassword extends Component
 
         $status = Password::reset(
             [
-                'email' => $this->email,
+                'email' => Str::lower(trim($this->email)),
                 'password' => $this->password,
                 'password_confirmation' => $this->password_confirmation,
                 'token' => $this->token,

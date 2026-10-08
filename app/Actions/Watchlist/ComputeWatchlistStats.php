@@ -2,6 +2,8 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 use App\Support\Movies\Favorites;
 use App\Support\Movies\FieldList;
@@ -19,8 +21,8 @@ class ComputeWatchlistStats
      */
     public function handle(): array
     {
-        $watched = WatchlistItem::query()->whereNotNull('watched_at')->where('status', 'watched')->get();
-        $toRewatch = WatchlistItem::query()->whereNotNull('watched_at')->where('status', 'to_rewatch')->get();
+        $watched = WatchlistItem::query()->whereNotNull('watched_at')->where('status', WatchStatus::Watched->value)->get();
+        $toRewatch = WatchlistItem::query()->whereNotNull('watched_at')->where('status', WatchStatus::ToRewatch->value)->get();
 
         $year = now()->year;
         $inYear = fn ($item) => $item->watched_at?->year === $year;
@@ -59,12 +61,12 @@ class ComputeWatchlistStats
             'totalWatched' => $watched->count(),
             'averageRating' => $rated->isNotEmpty() ? round((float) $rated->avg('personal_rating'), 1) : null,
             'topGenres' => $genreCounts->take(3),
-            'cinemaCount' => $watched->where('source', 'cinema')->count(),
-            'streamingCount' => $watched->where('source', 'streaming')->count(),
+            'cinemaCount' => $watched->where('source', WatchSource::Cinema)->count(),
+            'streamingCount' => $watched->where('source', WatchSource::Streaming)->count(),
             'toRewatchCount' => $toRewatch->count(),
             // Où ces films à revoir ont été vus la toute première fois (champ distinct de `source`).
-            'toRewatchCinemaCount' => $toRewatch->where('first_watched_source', 'cinema')->count(),
-            'toRewatchStreamingCount' => $toRewatch->where('first_watched_source', 'streaming')->count(),
+            'toRewatchCinemaCount' => $toRewatch->where('first_watched_source', WatchSource::Cinema)->count(),
+            'toRewatchStreamingCount' => $toRewatch->where('first_watched_source', WatchSource::Streaming)->count(),
             'topDirectors' => $directorCounts->take(3),
             'topStudios' => $studioCounts->take(3),
             // Films préférés sous 2 angles (nb de vues seul / note seule) — voir Favorites::filmsForUser().

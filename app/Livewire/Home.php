@@ -3,6 +3,8 @@
 namespace App\Livewire;
 
 use App\Actions\Watchlist\WatchlistStatusCounts;
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Livewire\Concerns\InteractsWithMovies;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
@@ -15,15 +17,15 @@ class Home extends Component
 
     public function with(TmdbClient $tmdb, WatchlistStatusCounts $statusCounts): array
     {
-        $toWatch = WatchlistItem::query()->where('status', 'to_watch')->orderBy('priority')->latest()->limit(6)->get();
+        $toWatch = WatchlistItem::query()->where('status', WatchStatus::ToWatch->value)->orderBy('priority')->latest()->limit(6)->get();
 
         // Tous les films « cinéma » encore « à voir », avec leur date de sortie française. On
         // interroge TMDB film par film plutôt que de croiser avec la liste des sorties des 2
         // prochains mois : un film plus lointain (ou déjà à l'affiche) n'y figurait pas, et la liste
         // était en plus tronquée à 4 entrées.
         $cinemaItems = WatchlistItem::query()
-            ->where('source', 'cinema')
-            ->where('status', 'to_watch')
+            ->where('source', WatchSource::Cinema->value)
+            ->where('status', WatchStatus::ToWatch->value)
             ->get();
 
         $releases = $cinemaItems->isEmpty()

@@ -4,6 +4,7 @@ namespace App\Services\Tmdb;
 
 use App\Support\Tmdb\FrenchLocale;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Fiches de films TMDB : détails complets (find), casting complet (credits), films similaires
@@ -18,15 +19,26 @@ class MovieDetails
     /**
      * Fiche complète d'un film TMDB (détails, crédits, bande-annonce), mise en cache 24 h.
      * La clé de cache est versionnée : elle change chaque fois que de nouveaux champs sont ajoutés
-     * à la fiche (v4 : titre original, slogan, pays, langue, budget, recettes, scénaristes).
+     * à la fiche (v4 : titre original, slogan, pays, langue, budget, recettes, scénaristes ; v5 : `imdb_rating` renommé `tmdb_rating`).
      */
+    /**
+     * Un identifiant TMDB est un entier. Les méthodes ci-dessous l'insèrent dans le chemin de
+     * l'URL et dans une clé de cache : certains appelants le reçoivent du navigateur (propriétés
+     * publiques Livewire), un `../` ou un `/` permettrait d'appeler un autre endpoint TMDB avec
+     * le jeton de l'application. Tout identifiant invalide est donc traité comme « introuvable ».
+     */
+    private function isValidId(string $tmdbId): bool
+    {
+        return $tmdbId !== '' && strlen($tmdbId) <= 10 && ctype_digit($tmdbId);
+    }
+
     public function find(string $tmdbId): ?array
     {
-        if (! $this->connector->configured()) {
+        if (! $this->isValidId($tmdbId) || ! $this->connector->configured()) {
             return null;
         }
 
-        return Cache::remember("tmdb.movie.v4.{$tmdbId}", now()->addDay(), function () use ($tmdbId) {
+        return Cache::remember("tmdb.movie.v5.{$tmdbId}", now()->addDay(), function () use ($tmdbId) {
             try {
                 $response = $this->connector->client()->get("movie/{$tmdbId}", $this->connector->withAuth([
                     'language' => 'fr-FR', // Force le français
@@ -74,7 +86,7 @@ class MovieDetails
                     'actors' => $actors ?: null,
                     'studio' => $studio ?: null,
                     'runtime' => isset($data['runtime']) ? $data['runtime'].' min' : null,
-                    'imdb_rating' => $data['vote_average'] ?? null,
+                    'tmdb_rating' => $data['vote_average'] ?? null,
                     'plot' => $data['overview'] ?? null,
                     'trailer_key' => $trailer['key'] ?? null,
                     'trailer_lang' => $trailer['lang'] ?? null,
@@ -93,6 +105,8 @@ class MovieDetails
                     'writers' => $writers ?: null,
                 ];
             } catch (\Exception $e) {
+                Log::warning('TMDB movie details failed.', ['tmdb_id' => $tmdbId, 'message' => $e->getMessage()]);
+
                 return null;
             }
         });
@@ -111,7 +125,7 @@ class MovieDetails
     public function credits(string $tmdbId): array
     {
         $empty = ['cast' => [], 'crew' => [], 'total' => 0];
-        if (! $this->connector->configured()) return $empty;
+        if (! $this->isValidId($tmdbId) || ! $this->connector->configured()) return $empty;
 
         $credits = Cache::remember("tmdb.movie.credits.v1.{$tmdbId}", now()->addDays(3), function () use ($tmdbId) {
             try {
@@ -154,6 +168,8 @@ class MovieDetails
                     'total' => $cast->count(),
                 ];
             } catch (\Exception $e) {
+                Log::warning('TMDB movie credits failed.', ['tmdb_id' => $tmdbId, 'message' => $e->getMessage()]);
+
                 return null;
             }
         });
@@ -170,7 +186,7 @@ class MovieDetails
      */
     public function similarFilms(string $tmdbId): array
     {
-        if (! $this->connector->configured()) return [];
+        if (! $this->isValidId($tmdbId) || ! $this->connector->configured()) return [];
 
         return Cache::remember("tmdb.movie.similar.v1.{$tmdbId}", now()->addDays(3), function () use ($tmdbId) {
             try {
@@ -193,6 +209,8 @@ class MovieDetails
                     ->values()
                     ->all();
             } catch (\Exception $e) {
+                Log::warning('TMDB similar films failed.', ['tmdb_id' => $tmdbId, 'message' => $e->getMessage()]);
+
                 return [];
             }
         });
@@ -226,6 +244,8 @@ class MovieDetails
                     ->values()
                     ->all();
             } catch (\Exception $e) {
+                Log::warning('TMDB collection films failed.', ['collection_id' => $collectionId, 'message' => $e->getMessage()]);
+
                 return [];
             }
         });
@@ -240,7 +260,7 @@ class MovieDetails
     public function watchProviders(string $tmdbId): array
     {
         $empty = ['link' => null, 'flatrate' => [], 'rent' => [], 'buy' => []];
-        if (! $this->connector->configured()) return $empty;
+        if (! $this->isValidId($tmdbId) || ! $this->connector->configured()) return $empty;
 
         return Cache::remember("tmdb.providers.v1.{$tmdbId}", now()->addDays(3), function () use ($tmdbId, $empty) {
             try {
@@ -265,6 +285,8 @@ class MovieDetails
                     'buy' => $mapProviders($fr['buy'] ?? []),
                 ];
             } catch (\Exception $e) {
+                Log::warning('TMDB watch providers failed.', ['tmdb_id' => $tmdbId, 'message' => $e->getMessage()]);
+
                 return $empty;
             }
         });

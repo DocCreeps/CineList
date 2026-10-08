@@ -70,13 +70,13 @@
             @elseif($window === 'old')
             <button
                 type="button"
-                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $movie['title'] . ' » comme déjà vu et l\'ajouter à votre liste ?'), () => $wire.add('{{ $movie['tmdb_id'] }}', 'streaming', 'watched'))"
+                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $movie['title'] . ' » comme déjà vu et l\'ajouter à votre liste ?'), $wire, 'add', ['{{ $movie['tmdb_id'] }}', 'streaming', 'watched'])"
                 class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
             >Déjà vue</button>
             <button wire:click="add('{{ $movie['tmdb_id'] }}', 'streaming')" class="rounded-lg bg-violet-950/80 border border-violet-800/60 px-2.5 py-1 text-[11px] font-bold text-violet-300 transition hover:bg-violet-900 hover:text-white">+ Streaming</button>
             <button
                 type="button"
-                x-on:click="$store.confirmModal.open(@js('Ajouter « ' . $movie['title'] . ' » à votre liste « à revoir » ?'), () => $wire.add('{{ $movie['tmdb_id'] }}', 'streaming', 'to_rewatch'), { danger: false, confirmLabel: 'Ajouter' })"
+                x-on:click="$store.confirmModal.open(@js('Ajouter « ' . $movie['title'] . ' » à votre liste « à revoir » ?'), $wire, 'add', ['{{ $movie['tmdb_id'] }}', 'streaming', 'to_rewatch'], { danger: false, confirmLabel: 'Ajouter' })"
                 class="rounded-lg bg-sky-950/80 border border-sky-800/60 px-2.5 py-1 text-[11px] font-bold text-sky-300 transition hover:bg-sky-900 hover:text-white"
             >Revoir</button>
             @else
@@ -85,7 +85,7 @@
             {{-- Déjà à l'affiche : on a pu le voir en salle, à enregistrer comme tel. --}}
             <button
                 type="button"
-                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $movie['title'] . ' » comme déjà vu au cinéma et l\'ajouter à votre liste ?'), () => $wire.add('{{ $movie['tmdb_id'] }}', 'cinema', 'watched'))"
+                x-on:click="$store.confirmModal.open(@js('Marquer « ' . $movie['title'] . ' » comme déjà vu au cinéma et l\'ajouter à votre liste ?'), $wire, 'add', ['{{ $movie['tmdb_id'] }}', 'cinema', 'watched'])"
                 class="rounded-lg bg-zinc-800/80 border border-zinc-700/60 px-2.5 py-1 text-[11px] font-bold text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
             >Déjà vue</button>
             @endif

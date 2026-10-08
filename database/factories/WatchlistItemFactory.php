@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\Movie;
 use App\Models\User;
 use App\Models\WatchlistItem;
@@ -17,8 +19,8 @@ class WatchlistItemFactory extends Factory
         return [
             'user_id' => User::factory(),
             'movie_id' => Movie::factory(),
-            'status' => 'to_watch',
-            'source' => 'streaming',
+            'status' => WatchStatus::ToWatch->value,
+            'source' => WatchSource::Streaming->value,
             'priority' => 2,
             'watch_count' => 0,
         ];
@@ -28,7 +30,7 @@ class WatchlistItemFactory extends Factory
     public function watched(?string $at = null): static
     {
         return $this->state(fn () => [
-            'status' => 'watched',
+            'status' => WatchStatus::Watched->value,
             'watched_at' => $at ?? now(),
             'watch_count' => 1,
         ]);
@@ -36,6 +38,6 @@ class WatchlistItemFactory extends Factory
 
     public function toRewatch(?string $at = null): static
     {
-        return $this->watched($at)->state(['status' => 'to_rewatch']);
+        return $this->watched($at)->state(['status' => WatchStatus::ToRewatch->value]);
     }
 }

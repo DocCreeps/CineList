@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Actions\Stats\ComputeCommunityStats;
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -36,7 +39,7 @@ class WatchlistItem extends Model
      */
     public const MOVIE_ATTRIBUTES = [
         'tmdb_id', 'title', 'year', 'poster_url', 'type', 'genre', 'director', 'actors', 'studio',
-        'runtime', 'imdb_rating', 'plot', 'release_date',
+        'runtime', 'tmdb_rating', 'plot', 'release_date',
     ];
 
     /**
@@ -55,12 +58,19 @@ class WatchlistItem extends Model
     /** Colonnes de `movies` chargées avec les précédentes en contexte admin (`plot` et `actors` en sont exclus, comme avant). */
     public const ADMIN_SAFE_MOVIE_COLUMNS = [
         'id', 'tmdb_id', 'title', 'year', 'poster_url', 'genre', 'director', 'studio', 'runtime',
-        'imdb_rating', 'release_date',
+        'tmdb_rating', 'release_date',
     ];
 
     protected function casts(): array
     {
-        return ['watched_at' => 'datetime', 'watch_count' => 'integer'];
+        return [
+            'watched_at' => 'datetime',
+            'watch_count' => 'integer',
+            // Enums : `$item->status` est un cas WatchStatus (->value pour la chaîne), jamais une chaîne brute.
+            'status' => WatchStatus::class,
+            'source' => WatchSource::class,
+            'first_watched_source' => WatchSource::class,
+        ];
     }
 
     /**
@@ -81,7 +91,7 @@ class WatchlistItem extends Model
      */
     public function watchCountLocked(): bool
     {
-        return $this->status === 'to_rewatch' || $this->watch_count > 1;
+        return $this->status === WatchStatus::ToRewatch || $this->watch_count > 1;
     }
 
     /** @return BelongsTo<User, $this> */
@@ -116,7 +126,9 @@ class WatchlistItem extends Model
      */
     public function scopeAdminSafe(Builder $query): void
     {
+        // Les films des comptes fictifs de la démo ne comptent ni dans le bilan communautaire ni dans l'admin.
         $query->withoutGlobalScope('owner')
+            ->whereDoesntHave('user', fn (Builder $user) => $user->where('is_demo', true))
             ->select(self::ADMIN_SAFE_COLUMNS)
             ->with('movie:'.implode(',', self::ADMIN_SAFE_MOVIE_COLUMNS));
     }
@@ -164,7 +176,7 @@ class WatchlistItem extends Model
         return static::query()
             ->whereMovie(fn (Builder $movie) => $movie->whereIn('tmdb_id', $ids))
             ->get()
-            ->mapWithKeys(fn (self $item) => [$item->tmdb_id => $item->status]);
+            ->mapWithKeys(fn (self $item) => [$item->tmdb_id => $item->status->value]);
     }
 
     /**
@@ -172,17 +184,28 @@ class WatchlistItem extends Model
      * toutes les requêtes existantes — recherche, tableau de bord, statistiques, accueil — aux
      * films de l'utilisateur connecté, sans avoir à les modifier une par une. `creating`
      * estampille les nouvelles lignes avec l'utilisateur courant.
+     *
+     * Sans utilisateur connecté (commande artisan, job de file, test), le scope est FERMÉ : la requête
+     * ne renvoie rien. Un oubli d'authentification ne doit jamais exposer les films de tous les
+     * membres. Le code qui a vraiment besoin de tout voir le demande explicitement :
+     * `withoutGlobalScope('owner')` ou `adminSafe()`.
      */
     protected static function booted(): void
     {
         static::addGlobalScope('owner', function (Builder $query) {
             if (auth()->check()) {
                 $query->where('watchlist_items.user_id', auth()->id());
+            } else {
+                $query->whereRaw('1 = 0');
             }
         });
 
         static::creating(function (self $item) {
             $item->user_id ??= auth()->id();
         });
+
+        // Les stats communautaires sont mises en cache : tout changement de la liste les invalide.
+        static::saved(fn () => ComputeCommunityStats::forget());
+        static::deleted(fn () => ComputeCommunityStats::forget());
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\Movie;
 use App\Models\WatchlistItem;
 use App\Support\Movies\FieldList;
@@ -41,12 +43,12 @@ class FilterWatchlistItems
                 fn ($qq) => $qq->whereMovie(fn (Builder $m) => $m->where('title', 'like', '%'.$searchQuery.'%'))
                     ->orWhere('note', 'like', '%'.$searchQuery.'%')
             ))
-            ->when($staleOnly, fn ($q) => $q->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3)));
+            ->when($staleOnly, fn ($q) => $q->where('status', WatchStatus::ToWatch->value)->where('created_at', '<=', now()->subMonths(3)));
 
         match ($sortBy) {
             'added_desc' => $query->latest(),
             'year_desc' => $query->orderByMovie('year', 'desc'),
-            'rating_desc' => $query->orderByMovie('imdb_rating', 'desc'),
+            'rating_desc' => $query->orderByMovie('tmdb_rating', 'desc'),
             'alpha' => $query->orderByMovie('title'),
             default => $query->orderBy('priority')->latest(),
         };
@@ -56,17 +58,17 @@ class FilterWatchlistItems
         // "Vus" sortis de la grille principale par défaut, sauf filtre explicite sur ce statut.
         $watchedItems = collect();
         if (empty($statusFilter)) {
-            $watchedItems = $items->where('status', 'watched')->values();
-            $items = $items->reject(fn ($item) => $item->status === 'watched')->values();
+            $watchedItems = $items->where('status', WatchStatus::Watched)->values();
+            $items = $items->reject(fn ($item) => $item->status === WatchStatus::Watched)->values();
         }
 
         // Grille scindée en deux sections, ordre du tri conservé.
-        $toWatchItems = $items->where('status', 'to_watch')->values();
-        $toRewatchItems = $items->where('status', 'to_rewatch')->values();
+        $toWatchItems = $items->where('status', WatchStatus::ToWatch)->values();
+        $toRewatchItems = $items->where('status', WatchStatus::ToRewatch)->values();
 
         $counts = $this->statusCounts->handle();
         $sourceCounts = WatchlistItem::query()->selectRaw('source, count(*) as total')->groupBy('source')->pluck('total', 'source');
-        $staleCount = WatchlistItem::query()->where('status', 'to_watch')->where('created_at', '<=', now()->subMonths(3))->count();
+        $staleCount = WatchlistItem::query()->where('status', WatchStatus::ToWatch->value)->where('created_at', '<=', now()->subMonths(3))->count();
 
         // Seules les colonnes utiles aux filtres, lues sur les fiches des films de la liste du
         // membre (le scope `owner` de WatchlistItem s'applique dans `whereHas`).
@@ -79,8 +81,8 @@ class FilterWatchlistItems
             'watchedItems' => $watchedItems,
             'counts' => [
                 ...$counts,
-                'cinema' => (int) $sourceCounts->get('cinema', 0),
-                'streaming' => (int) $sourceCounts->get('streaming', 0),
+                'cinema' => (int) $sourceCounts->get(WatchSource::Cinema->value, 0),
+                'streaming' => (int) $sourceCounts->get(WatchSource::Streaming->value, 0),
                 'stale' => $staleCount,
             ],
             // Valeurs distinctes sur toute la liste ; genre/studio sont des listes séparées

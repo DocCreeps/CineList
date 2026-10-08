@@ -3,6 +3,7 @@
 namespace App\Services\Tmdb;
 
 use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -32,7 +33,7 @@ class MovieSearch
 
         // À incrémenter quand la forme ou la logique des résultats mis en cache change, pour
         // ne jamais resservir une entrée périmée issue d'une version précédente de la méthode.
-        $cacheVersion = 'v5';
+        $cacheVersion = 'v6';
         $cacheKey = 'tmdb.search.'.$cacheVersion.'.'.$mode.'.'.md5(strtolower(trim($query))).'.y'.($minYear ?? 'all');
         if ($cached = Cache::get($cacheKey)) {
             return ['results' => $cached, 'error' => null];
@@ -148,7 +149,7 @@ class MovieSearch
 
             foreach ($extraPages as $page) {
                 $res = $poolResponses[$page] ?? null;
-                if ($res && $res->ok()) {
+                if ($res instanceof Response && $res->ok()) {
                     $movies = $movies->merge($res->json('results') ?? []);
                 }
             }
@@ -208,7 +209,7 @@ class MovieSearch
                 'poster_url' => isset($movie['poster_path']) ? 'https://image.tmdb.org/t/p/w500'.$movie['poster_path'] : null,
                 'type' => 'movie',
                 'plot' => $movie['overview'] ?? null,
-                'imdb_rating' => !empty($movie['vote_average']) ? round($movie['vote_average'], 1) : null,
+                'tmdb_rating' => !empty($movie['vote_average']) ? round($movie['vote_average'], 1) : null,
                 // TMDB n'a pas d'indicateur propre pour les rôles de doublage. Beaucoup de
                 // crédits voix le précisent directement ("Woody (voice)", "Narrator (voice)"),
                 // mais de nombreuses fiches éditées par la communauté l'omettent — un crédit sur
@@ -265,7 +266,7 @@ class MovieSearch
 
         foreach ($results as &$movie) {
             $res = $poolResponses[$movie['tmdb_id']] ?? null;
-            if ($res && $res->ok()) {
+            if ($res instanceof Response && $res->ok()) {
                 $data = $res->json();
                 $details = [
                     'director' => collect($data['credits']['crew'] ?? [])->firstWhere('job', 'Director')['name'] ?? null,

@@ -70,7 +70,7 @@
                         </button>
                         <button
                             type="button"
-                            x-on:click="$store.confirmModal.open(@js('Désactiver la double authentification ?'), () => $wire.disable())"
+                            x-on:click="$store.confirmModal.open(@js('Désactiver la double authentification ?'), $wire, 'disable', [])"
                             class="rounded-xl border border-red-900/60 px-4 py-2.5 text-sm font-bold text-red-400 transition hover:bg-red-950/30"
                         >
                             Désactiver

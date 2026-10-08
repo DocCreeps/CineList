@@ -31,7 +31,7 @@
 
         <div>
             <label for="invite_code" class="mb-1.5 block text-xs font-bold uppercase tracking-wide text-zinc-500">Code d'invitation</label>
-            <input wire:model="invite_code" id="invite_code" type="text" required placeholder="XXXX-XXXX"
+            <input wire:model="invite_code" id="invite_code" type="text" required placeholder="XXXX-XXXX-XXXX"
                 class="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 font-mono text-sm uppercase text-zinc-100 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500">
             @error('invite_code') <p class="mt-1.5 text-xs text-red-400">{{ $message }}</p> @enderror
         </div>

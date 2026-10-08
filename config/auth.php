@@ -119,13 +119,18 @@ return [
     | Exiger un e-mail vérifié
     |--------------------------------------------------------------------------
     |
-    | Une fois un vrai mailer configuré (MAIL_MAILER autre que "log"), passe
-    | cette variable à true pour bloquer l'accès à l'application tant que le
-    | lien reçu par e-mail n'a pas été cliqué. Reste à false par défaut pour ne
-    | pas bloquer un déploiement dont le mailer n'est pas encore prêt.
+    | Bloque l'accès à l'application tant que le lien reçu par e-mail n'a pas
+    | été cliqué. Sans valeur explicite, la vérification est exigée en production
+    | dès qu'un vrai mailer est configuré (MAIL_MAILER autre que "log"/"array") :
+    | l'oublier laisserait n'importe quelle adresse, même inexistante, s'inscrire
+    | avec un code valable. Sans vrai mailer, elle reste désactivée pour ne pas
+    | enfermer dehors les membres (le lien ne leur parviendrait jamais).
+    | REQUIRE_EMAIL_VERIFICATION=true/false force le choix dans tous les cas.
     |
     */
 
-    'require_verified_email' => env('REQUIRE_EMAIL_VERIFICATION', false),
+    'require_verified_email' => \App\Support\EmailVerificationPolicy::required(
+        env('REQUIRE_EMAIL_VERIFICATION'), (string) env('APP_ENV', 'production'), (string) env('MAIL_MAILER', 'log'),
+    ),
 
 ];

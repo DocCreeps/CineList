@@ -93,7 +93,7 @@
                         @if ($member->id !== auth()->id())
                         <button
                             type="button"
-                            x-on:click="$store.confirmModal.open(@js('Supprimer définitivement « ' . $member->name . ' » ? Tous ses films seront également supprimés. Cette action est irréversible.'), () => $wire.deleteMember({{ $member->id }}))"
+                            x-on:click="$store.confirmModal.open(@js('Supprimer définitivement « ' . $member->name . ' » ? Tous ses films seront également supprimés. Cette action est irréversible.'), $wire, 'deleteMember', [{{ $member->id }}])"
                             class="text-[11px] font-bold uppercase tracking-wide text-red-400 transition hover:text-red-300"
                         >Supprimer</button>
                         @endif

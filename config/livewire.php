@@ -260,7 +260,11 @@ return [
     |
     */
 
-    'csp_safe' => false,
+    // Activé : Livewire embarque la build Alpine qui n'évalue pas de JavaScript arbitraire, ce qui
+    // permet à la politique CSP de se passer de 'unsafe-eval' (voir SetSecurityHeaders). Conséquence :
+    // les expressions des vues restent simples (pas de `=>`, de gabarits `${}`, de `?.`…) ; la logique
+    // va dans resources/js/app.js.
+    'csp_safe' => true,
 
     /*
     |---------------------------------------------------------------------------

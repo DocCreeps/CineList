@@ -2,6 +2,8 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\Movie;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
@@ -43,8 +45,8 @@ class AddCollectionToWatchlist
 
             WatchlistItem::create([
                 'movie_id' => $movie->id,
-                'source' => in_array($window, ['upcoming', 'in_cinema'], true) ? 'cinema' : 'streaming',
-                'status' => 'to_watch',
+                'source' => (in_array($window, ['upcoming', 'in_cinema'], true) ? WatchSource::Cinema : WatchSource::Streaming)->value,
+                'status' => WatchStatus::ToWatch->value,
                 'watched_at' => null,
             ]);
             $added++;

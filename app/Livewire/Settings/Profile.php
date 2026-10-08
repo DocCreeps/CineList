@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Livewire\Concerns\ThrottlesWithCountdown;
+use App\Actions\Stats\ComputeCommunityStats;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +94,7 @@ class Profile extends Component
         DB::table('sessions')->where('user_id', $user->id)->delete();
 
         $user->delete();
+        ComputeCommunityStats::forget();
 
         request()->session()->invalidate();
         request()->session()->regenerateToken();

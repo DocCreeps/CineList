@@ -3,6 +3,8 @@
 namespace App\Livewire\Admin;
 
 use App\Actions\Admin\ComputeMemberDetail;
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\User;
 use App\Models\WatchlistItem;
 use App\Support\Movies\FieldList;
@@ -18,10 +20,6 @@ use Livewire\Component;
 class MemberShow extends Component
 {
     private const PER_PAGE = 24;
-
-    private const STATUSES = ['to_watch', 'watched', 'to_rewatch'];
-
-    private const SOURCES = ['cinema', 'streaming'];
 
     private const SORTS = ['added_desc', 'watched_desc', 'title', 'rating_desc', 'year_desc'];
 
@@ -92,8 +90,8 @@ class MemberShow extends Component
         $member = User::query()->findOrFail($this->memberId);
 
         // Ces valeurs viennent aussi de l'URL (?statut=…) : une valeur inconnue est simplement ignorée.
-        $status = in_array($this->status, self::STATUSES, true) ? $this->status : '';
-        $source = in_array($this->source, self::SOURCES, true) ? $this->source : '';
+        $status = in_array($this->status, WatchStatus::values(), true) ? $this->status : '';
+        $source = in_array($this->source, WatchSource::values(), true) ? $this->source : '';
         $sort = in_array($this->sort, self::SORTS, true) ? $this->sort : 'added_desc';
         $genre = trim($this->genre);
         $search = trim($this->search);
@@ -106,8 +104,8 @@ class MemberShow extends Component
         $detail = $computeDetail->handle($member->id, $all);
 
         $films = $all
-            ->when($status !== '', fn ($items) => $items->where('status', $status))
-            ->when($source !== '', fn ($items) => $items->where('source', $source))
+            ->when($status !== '', fn ($items) => $items->where('status', WatchStatus::from($status)))
+            ->when($source !== '', fn ($items) => $items->where('source', WatchSource::from($source)))
             // Un film peut avoir plusieurs genres : on compare à chacun, pas à la chaîne entière.
             ->when($genre !== '', fn ($items) => $items->filter(
                 fn ($item) => FieldList::split($item->genre)->contains($genre)

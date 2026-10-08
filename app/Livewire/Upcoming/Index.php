@@ -107,8 +107,8 @@ class Index extends Component
             $visible = [...$visible, ...$browsed['movies']];
         }
 
-        // $results = films actuellement affichés : c'est la source de repli du trait
-        // InteractsWithMovies (détails, ajout) quand TMDB ne répond pas à un appel individuel. On
+        // $results = films actuellement affichés : c'est la source de repli d'affichage du trait
+        // InteractsWithMovies (modale de détails) quand TMDB ne répond pas à un appel individuel. On
         // n'y garde que l'essentiel, pour ne pas alourdir chaque aller-retour Livewire (cette
         // propriété est renvoyée au navigateur à chaque fois).
         $keep = array_flip(['tmdb_id', 'title', 'year', 'release_date', 'poster_url']);

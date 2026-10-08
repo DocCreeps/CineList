@@ -205,7 +205,7 @@
             @else
             <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 @foreach ($films as $film)
-                @php($meta = $statusMeta[$film->status] ?? $statusMeta['to_watch'])
+                @php($meta = $statusMeta[$film->status->value] ?? $statusMeta['to_watch'])
                 <article wire:key="film-{{ $film->id }}" class="flex flex-col overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/90">
                     <div class="relative aspect-[2/3] w-full overflow-hidden bg-zinc-950">
                         @if ($film->poster_url)
@@ -215,8 +215,8 @@
                         @endif
                         <div class="absolute inset-x-0 top-0 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-2">
                             <span class="rounded-lg border border-white/10 bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300 backdrop-blur-md">{{ $film->year ?: '—' }}</span>
-                            @if ($film->imdb_rating)
-                            <span class="rounded-lg bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-zinc-950">★ {{ $film->imdb_rating }}</span>
+                            @if ($film->tmdb_rating)
+                            <span class="rounded-lg bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-zinc-950">★ {{ $film->tmdb_rating }}</span>
                             @endif
                         </div>
                     </div>
@@ -231,7 +231,7 @@
 
                         <div class="mt-auto flex flex-wrap items-center gap-1.5 pt-1.5">
                             <span class="rounded-md border px-1.5 py-px text-[10px] font-bold {{ $meta['badge'] }}">{{ $meta['label'] }}</span>
-                            <span class="text-[10px] font-semibold {{ $film->source === 'streaming' ? 'text-violet-400' : 'text-amber-400' }}">{{ $film->source === 'streaming' ? 'Streaming' : 'Cinéma' }}</span>
+                            <span class="text-[10px] font-semibold {{ $film->source === \App\Enums\WatchSource::Streaming ? 'text-violet-400' : 'text-amber-400' }}">{{ $film->source === \App\Enums\WatchSource::Streaming ? 'Streaming' : 'Cinéma' }}</span>
                         </div>
 
                         @if ($film->personal_rating)

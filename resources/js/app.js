@@ -1,3 +1,6 @@
+// Action en attente de confirmation (voir le store confirmModal) : volontairement hors de l'état réactif.
+let pendingAction = null;
+
 document.addEventListener('alpine:init', () => {
     /**
      * Notifications ("toasts") globales, empilées en haut à droite de l'écran (en haut, centrées, sur mobile).
@@ -83,17 +86,27 @@ document.addEventListener('alpine:init', () => {
         confirmLabel: 'Confirmer',
         cancelLabel: 'Annuler',
         danger: true,
-        _callback: null,
 
         /**
          * Ouvre la modale de confirmation.
+         *
+         * L'action n'est PAS passée sous forme de fonction : la politique CSP de l'application interdit
+         * à Alpine d'évaluer du JavaScript arbitraire (donc pas de `() => …` dans un attribut). On
+         * décrit l'appel à la place, et c'est ce fichier — du vrai code — qui l'exécute.
+         *
+         * Exemple dans une vue :
+         *   x-on:click="$store.confirmModal.open('Supprimer ?', $wire, 'remove', [12])"
+         *
          * @param {string} message
-         * @param {Function} callback Exécutée si l'utilisateur confirme.
+         * @param {object} wire Composant Livewire ($wire) dont on appelle une méthode.
+         * @param {string} method Nom de la méthode du composant à appeler si l'utilisateur confirme.
+         * @param {Array} args Arguments de cette méthode.
          * @param {object} options { title, confirmLabel, cancelLabel, danger }
          */
-        open(message, callback, options = {}) {
+        open(message, wire, method, args = [], options = {}) {
             this.message = message;
-            this._callback = callback;
+            // Gardé hors de l'état réactif d'Alpine : envelopper $wire dans un proxy réactif le casserait.
+            pendingAction = { wire, method, args };
             this.title = options.title ?? 'Confirmation';
             this.confirmLabel = options.confirmLabel ?? 'Confirmer';
             this.cancelLabel = options.cancelLabel ?? 'Annuler';
@@ -102,18 +115,130 @@ document.addEventListener('alpine:init', () => {
         },
 
         confirm() {
-            const callback = this._callback;
+            const action = pendingAction;
             this.close();
-            if (typeof callback === 'function') {
-                callback();
+            if (action?.wire && action.method) {
+                action.wire[action.method](...action.args);
             }
         },
 
         close() {
             this.show = false;
-            this._callback = null;
+            pendingAction = null;
         },
     });
+
+    /**
+     * Carrousel à flèches (films similaires de la modale) : fait défiler l'élément x-ref="track".
+     * A poser sur le conteneur : x-data="scrollTrack", puis x-on:click="scrollBy(-300)".
+     */
+    Alpine.data('scrollTrack', () => ({
+        scrollBy(amount) {
+            this.$refs.track.scrollBy({ left: amount, behavior: 'smooth' });
+        },
+    }));
+
+    /**
+     * Bouton « Copier » : copie un texte dans le presse-papiers puis affiche « Copié ! » 2 secondes.
+     * x-data="copyButton", x-on:click="copy(@js($url))", et x-show="copied" / x-show="! copied" pour les libellés.
+     * (Les `;`, `navigator` et `setTimeout` ne sont pas utilisables dans un attribut sous CSP : voir ce fichier.)
+     */
+    Alpine.data('copyButton', () => ({
+        copied: false,
+
+        async copy(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch {
+                return; // presse-papiers indisponible (page non sécurisée) : on n'affiche pas un faux « Copié ! »
+            }
+
+            this.copied = true;
+            setTimeout(() => { this.copied = false; }, 2000);
+        },
+    }));
+
+    /**
+     * Sélecteur de mois (historique du bilan) : ouverture, mois courant, flèches et balayage tactile.
+     * x-data="monthSlider(<nombre de mois>)" ; les mois sont ordonnés du plus ancien au plus récent
+     * et l'on démarre sur le dernier. Chaque pastille porte x-ref="chip<index>".
+     */
+    Alpine.data('monthSlider', (count) => ({
+        open: false,
+        i: count - 1,
+        count,
+        startX: null,
+
+        toggle() {
+            this.open = ! this.open;
+            if (this.open) this.go(this.i);
+        },
+
+        go(n) {
+            this.i = Math.max(0, Math.min(this.count - 1, n));
+            this.$nextTick(() => this.$refs['chip' + this.i]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }));
+        },
+
+        swipeStart(e) {
+            this.startX = e.changedTouches[0].clientX;
+        },
+
+        swipeEnd(e) {
+            if (this.startX === null) return;
+            const dx = e.changedTouches[0].clientX - this.startX;
+            this.startX = null;
+            if (Math.abs(dx) > 50) this.go(this.i + (dx < 0 ? 1 : -1));
+        },
+    }));
+
+    /**
+     * Indicateur de force du mot de passe : évalué côté client, sans requête réseau. Les règles
+     * reflètent la politique de App\Providers\AppServiceProvider
+     * (Password::min(12)->mixedCase()->numbers()->symbols()).
+     * x-data="passwordStrength('<id du champ mot de passe>')".
+     */
+    Alpine.data('passwordStrength', (target) => ({
+        value: '',
+
+        get rules() {
+            return [
+                { label: '12 caractères minimum', valid: this.value.length >= 12 },
+                { label: 'Une minuscule', valid: /[a-z]/.test(this.value) },
+                { label: 'Une majuscule', valid: /[A-Z]/.test(this.value) },
+                { label: 'Un chiffre', valid: /[0-9]/.test(this.value) },
+                { label: 'Un caractère spécial', valid: /[^A-Za-z0-9]/.test(this.value) },
+            ];
+        },
+
+        get score() {
+            return this.rules.filter(r => r.valid).length;
+        },
+
+        get scoreLabel() {
+            if (this.value.length === 0) return '';
+            if (this.score <= 2) return 'Faible';
+            if (this.score <= 4) return 'Moyen';
+            return 'Fort';
+        },
+
+        get scoreColor() {
+            if (this.score <= 2) return 'bg-red-500';
+            if (this.score <= 4) return 'bg-amber-500';
+            return 'bg-emerald-500';
+        },
+
+        /** Largeur de la barre (calculée ici : un gabarit `${…}` n'est pas évaluable sous CSP). */
+        get barStyle() {
+            return `width: ${(this.score / 5) * 100}%`;
+        },
+
+        init() {
+            const field = document.getElementById(target);
+            if (!field) return;
+            this.value = field.value;
+            field.addEventListener('input', (e) => { this.value = e.target.value; });
+        },
+    }));
 
     /**
      * Compte à rebours automatique après un "Trop de tentatives".

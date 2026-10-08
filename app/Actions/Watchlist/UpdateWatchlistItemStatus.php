@@ -2,6 +2,8 @@
 
 namespace App\Actions\Watchlist;
 
+use App\Enums\WatchSource;
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 
 class UpdateWatchlistItemStatus
@@ -27,26 +29,27 @@ class UpdateWatchlistItemStatus
      */
     public function handle(WatchlistItem $item, string $status, ?string $firstWatchedSource = null): WatchlistItem
     {
-        abort_unless(in_array($status, ['to_watch', 'watched', 'to_rewatch'], true), 422);
+        $newStatus = WatchStatus::tryFrom($status);
+        abort_unless($newStatus !== null, 422);
         if ($firstWatchedSource !== null) {
-            abort_unless(in_array($firstWatchedSource, ['cinema', 'streaming'], true), 422);
+            abort_unless(WatchSource::tryFrom($firstWatchedSource) !== null, 422);
         }
 
-        if ($status === 'to_watch' && $item->alreadyWatched()) {
+        if ($newStatus === WatchStatus::ToWatch && $item->alreadyWatched()) {
             return $item;
         }
 
         $watchedAt = match (true) {
-            $status === 'to_watch' => null,
+            $newStatus === WatchStatus::ToWatch => null,
             $item->watched_at !== null => $item->watched_at,
             default => now(),
         };
 
-        $isFirstWatch = $item->watched_at === null && $status !== 'to_watch';
-        $isRewatch = $status === 'watched' && $item->status === 'to_rewatch';
+        $isFirstWatch = $item->watched_at === null && $newStatus !== WatchStatus::ToWatch;
+        $isRewatch = $newStatus === WatchStatus::Watched && $item->status === WatchStatus::ToRewatch;
 
         $item->update([
-            'status' => $status,
+            'status' => $newStatus->value,
             'watched_at' => $watchedAt,
             'first_watched_source' => $item->first_watched_source ?? $firstWatchedSource,
             'watch_count' => $isFirstWatch || $isRewatch ? $item->watch_count + 1 : $item->watch_count,

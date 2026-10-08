@@ -5,6 +5,7 @@ namespace App\Livewire\Concerns;
 use App\Actions\Watchlist\AddCollectionToWatchlist;
 use App\Actions\Watchlist\AddMovieToWatchlist;
 use App\Actions\Watchlist\UpdateWatchlistItemStatus;
+use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
@@ -13,9 +14,10 @@ use Livewire\Attributes\Computed;
 /**
  * Comportement partagé par toutes les pages qui listent des films TMDB (résultats
  * de recherche, sorties à venir) : ouverture de la modale de détails et ajout d'un
- * film à la watchlist. $results est la liste actuellement affichée sur la page ;
- * elle sert de source de repli quand un film n'a pas encore été récupéré
- * individuellement auprès de TMDB.
+ * film à la watchlist. $results est la liste actuellement affichée sur la page ; elle ne sert
+ * que de repli d'AFFICHAGE pour la modale de détails quand TMDB ne répond pas. Étant une
+ * propriété publique (donc modifiable depuis le navigateur), elle n'alimente jamais un ajout
+ * en base : voir AddMovieToWatchlist.
  */
 trait InteractsWithMovies
 {
@@ -32,7 +34,7 @@ trait InteractsWithMovies
      * nécessaire) sauf la bande-annonce, les films similaires et la saga, qui ne sont pas
      * persistés et sont toujours récupérés en direct (chacun mis en cache par TmdbClient : les
      * réouvertures sont donc gratuites). Un film pas encore ajouté est entièrement récupéré
-     * auprès de TMDB, avec la liste $results courante en repli.
+     * auprès de TMDB, avec la liste $results courante en repli d'affichage uniquement.
      */
     public function showDetails(string $tmdbId, TmdbClient $tmdb): void
     {
@@ -63,7 +65,7 @@ trait InteractsWithMovies
                 'plot' => $item->plot,
                 'genre' => $item->genre,
                 'runtime' => $item->runtime,
-                'imdb_rating' => $item->imdb_rating,
+                'tmdb_rating' => $item->tmdb_rating,
                 'trailer_key' => $fetched['trailer_key'] ?? null,
                 'trailer_lang' => $fetched['trailer_lang'] ?? null,
                 'similar' => $similar,
@@ -73,7 +75,7 @@ trait InteractsWithMovies
                 // pour afficher le champ "note" en texte libre, qui n'a pas d'autre interface.
                 'item_id' => $item->id,
                 'note' => $item->note,
-                'status' => $item->status,
+                'status' => $item->status->value,
                 'personal_rating' => $item->personal_rating,
                 'watch_count' => $item->watch_count,
             ];
@@ -99,7 +101,7 @@ trait InteractsWithMovies
             'plot' => $fetched['plot'] ?? $fallback['plot'] ?? null,
             'genre' => $fetched['genre'] ?? null,
             'runtime' => $fetched['runtime'] ?? null,
-            'imdb_rating' => $fetched['imdb_rating'] ?? null,
+            'tmdb_rating' => $fetched['tmdb_rating'] ?? null,
             'trailer_key' => $fetched['trailer_key'] ?? null,
             'trailer_lang' => $fetched['trailer_lang'] ?? null,
             'similar' => $similar,
@@ -145,16 +147,16 @@ trait InteractsWithMovies
     public function setStatus(int $id, string $status, UpdateWatchlistItemStatus $action, ?string $firstWatchedSource = null): void
     {
         $item = WatchlistItem::findOrFail($id);
-        $changed = $item->status !== $status;
+        $changed = $item->status->value !== $status;
 
         $action->handle($item, $status, $firstWatchedSource);
 
         // Recliquer sur le statut déjà actif ne change rien : pas de notification.
         if ($changed) {
-            $this->dispatch('toast', message: match ($status) {
-                'to_watch' => "« {$item->title} » remis dans « À voir ».",
-                'watched' => "« {$item->title} » marqué comme vu.",
-                'to_rewatch' => "« {$item->title} » ajouté à « À revoir ».",
+            $this->dispatch('toast', message: match (WatchStatus::from($status)) {
+                WatchStatus::ToWatch => "« {$item->title} » remis dans « À voir ».",
+                WatchStatus::Watched => "« {$item->title} » marqué comme vu.",
+                WatchStatus::ToRewatch => "« {$item->title} » ajouté à « À revoir ».",
             });
         }
 
@@ -162,8 +164,8 @@ trait InteractsWithMovies
         // 1ère fois, et nombre de fois vu, qui peut s'être incrémenté automatiquement).
         if ($this->selectedMovie && ($this->selectedMovie['item_id'] ?? null) === $id) {
             $item->refresh();
-            $this->selectedMovie['status'] = $item->status;
-            $this->selectedMovie['first_watched_source'] = $item->first_watched_source;
+            $this->selectedMovie['status'] = $item->status->value;
+            $this->selectedMovie['first_watched_source'] = $item->first_watched_source?->value;
             $this->selectedMovie['watch_count'] = $item->watch_count;
         }
     }
@@ -275,7 +277,7 @@ trait InteractsWithMovies
     /** Ouvre la modale d'un film "à voir" tiré au hasard, pour aider à choisir quoi regarder. */
     public function surpriseMe(TmdbClient $tmdb): void
     {
-        $item = WatchlistItem::where('status', 'to_watch')->inRandomOrder()->first();
+        $item = WatchlistItem::where('status', WatchStatus::ToWatch->value)->inRandomOrder()->first();
         if (! $item) {
             $this->dispatch('toast', message: 'Aucun film "à voir" dans votre liste pour le moment.', type: 'info');
             return;
@@ -293,7 +295,7 @@ trait InteractsWithMovies
     {
         abort_unless(ctype_digit($tmdbId), 422);
 
-        $result = $action->handle($tmdb, $tmdbId, $source, $status, $this->results);
+        $result = $action->handle($tmdb, $tmdbId, $source, $status);
         $this->dispatch('toast', message: $result['message'], type: $result['added'] ? 'success' : 'info');
     }
 

@@ -18,12 +18,12 @@ class Movie extends Model
 
     protected $fillable = [
         'tmdb_id', 'title', 'year', 'poster_url', 'type', 'genre', 'director', 'actors', 'studio',
-        'runtime', 'imdb_rating', 'plot', 'release_date',
+        'runtime', 'tmdb_rating', 'plot', 'release_date',
     ];
 
     protected function casts(): array
     {
-        return ['release_date' => 'date', 'imdb_rating' => 'decimal:1'];
+        return ['release_date' => 'date', 'tmdb_rating' => 'decimal:1'];
     }
 
     /** @return HasMany<WatchlistItem, $this> */

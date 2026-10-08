@@ -3,6 +3,7 @@
 namespace App\Livewire\Auth;
 
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -16,7 +17,7 @@ class ForgotPassword extends Component
     {
         $this->validate(['email' => ['required', 'string', 'email']]);
 
-        Password::sendResetLink(['email' => $this->email]);
+        Password::sendResetLink(['email' => Str::lower(trim($this->email))]);
 
         // Même résultat que l'adresse existe ou non : cet écran ne peut pas servir à
         // savoir quelles adresses e-mail ont un compte.
