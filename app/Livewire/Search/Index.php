@@ -5,6 +5,7 @@ namespace App\Livewire\Search;
 use App\Livewire\Concerns\InteractsWithMovies;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Component;
 
 class Index extends Component
@@ -114,6 +115,20 @@ class Index extends Component
 
     private function performSearch(): void
     {
+        // Garde-fou serveur : le debounce côté navigateur ne suffit pas — chaque frappe déclenche
+        // une requête Livewire, et une saisie rapide génère des clés de cache TMDB distinctes
+        // (le cache de TmdbClient est par requête, 60 s). 30 recherches/minute par membre reste
+        // largement au-dessus d'un usage réel tout en protégeant la clé API.
+        $throttleKey = 'search:'.auth()->id();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 30)) {
+            $this->searchError = 'Trop de recherches en peu de temps, ralentissez un peu.';
+
+            return;
+        }
+
+        RateLimiter::hit($throttleKey, 60);
+
         $query = $this->currentQuery();
         $response = app(TmdbClient::class)->searchFilms($query, $this->searchMode, $this->minYear);
 

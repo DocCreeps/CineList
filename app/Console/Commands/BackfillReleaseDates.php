@@ -12,6 +12,9 @@ use Illuminate\Console\Command;
  * nombre de membres qui l'ont dans leur liste. Sans cette date, un film "à voir" ne peut pas être identifié
  * comme "pas encore sorti" (le champ `year` seul ne suffit pas : un film sorti en janvier de
  * l'année en cours doit compter comme déjà sorti) — voir App\Actions\Stats\ComputeCommunityStats.
+ *
+ * ⚠️ Commande one-shot liée à la migration 2026_09_23_130000 : ne plus l'utiliser, et la
+ * supprimer du code une fois exécutée sur toutes les installations existantes.
  */
 class BackfillReleaseDates extends Command
 {
@@ -21,6 +24,8 @@ class BackfillReleaseDates extends Command
 
     public function handle(TmdbClient $tmdb): int
     {
+        $this->warn('Commande de rattrapage one-shot : à retirer du code après exécution sur toutes les installations.');
+
         $movies = Movie::whereNull('release_date')->get();
 
         if ($movies->isEmpty()) {

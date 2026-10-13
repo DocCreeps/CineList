@@ -9,6 +9,7 @@ use App\Enums\WatchStatus;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Computed;
 
 /**
@@ -41,6 +42,19 @@ trait InteractsWithMovies
         // Un identifiant TMDB est toujours numérique ; rejette toute autre valeur avant de
         // l'interpoler dans l'URL de l'API et dans les clés de cache (voir TmdbClient).
         abort_unless(ctype_digit($tmdbId), 422);
+
+        // Garde-fou serveur : une ouverture peut déclencher jusqu'à quatre appels TMDB (fiche,
+        // films similaires, plateformes, casting). 40 ouvertures/minute par membre, très
+        // au-dessus d'un usage réel, protège la clé API d'une boucle de clics automatisée.
+        $throttleKey = 'movie-details:'.auth()->id();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 40)) {
+            $this->dispatch('toast', message: 'Trop de requêtes en peu de temps, patientez une minute.', type: 'error');
+
+            return;
+        }
+
+        RateLimiter::hit($throttleKey, 60);
 
         $this->showCast = false;
 
@@ -78,6 +92,9 @@ trait InteractsWithMovies
                 'status' => $item->status->value,
                 'personal_rating' => $item->personal_rating,
                 'watch_count' => $item->watch_count,
+                // Toujours présente pour éviter une clé indéfinie côté Blade ; setStatus() la met
+                // à jour ensuite (à l'ouverture, seule sa valeur compte, pas son absence).
+                'first_watched_source' => $item->first_watched_source?->value,
             ];
             $this->showModal = true;
             return;
@@ -113,6 +130,7 @@ trait InteractsWithMovies
             'note' => null,
             'status' => null,
             'personal_rating' => null,
+            'first_watched_source' => null,
         ];
         $this->showModal = true;
     }

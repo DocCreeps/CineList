@@ -8,6 +8,7 @@ use App\Models\Movie;
 use App\Models\WatchlistItem;
 use App\Services\TmdbClient;
 use App\Support\Movies\ReleaseWindow;
+use Illuminate\Database\UniqueConstraintViolationException;
 
 class AddCollectionToWatchlist
 {
@@ -43,12 +44,18 @@ class AddCollectionToWatchlist
 
             $movie = Movie::syncFromTmdb($details);
 
-            WatchlistItem::create([
-                'movie_id' => $movie->id,
-                'source' => (in_array($window, ['upcoming', 'in_cinema'], true) ? WatchSource::Cinema : WatchSource::Streaming)->value,
-                'status' => WatchStatus::ToWatch->value,
-                'watched_at' => null,
-            ]);
+            try {
+                WatchlistItem::create([
+                    'movie_id' => $movie->id,
+                    'source' => (in_array($window, ['upcoming', 'in_cinema'], true) ? WatchSource::Cinema : WatchSource::Streaming)->value,
+                    'status' => WatchStatus::ToWatch->value,
+                    'watched_at' => null,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Double clic ou deux onglets : l'autre requête a ajouté le film entre le test
+                // d'existence et l'insertion (même garde que AddMovieToWatchlist).
+                continue;
+            }
             $added++;
         }
 

@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // CinéList raisonne en semaines cinéma françaises (les sorties tombent le mercredi) :
+    // l'heure du serveur doit donc être Europe/Paris, pas UTC, faute de quoi la « semaine en
+    // cours » bascule une heure trop tôt (ou deux en été).
+    'timezone' => env('APP_TIMEZONE', 'Europe/Paris'),
 
     /*
     |--------------------------------------------------------------------------
